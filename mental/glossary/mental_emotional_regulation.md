@@ -4,6 +4,7 @@ title: "Эмоциональная регуляция"
 domain: "mental"
 category: "glossary"
 tags:
+- эмоциональная_регуляция
 - эмоции
 - саморегуляция
 - психология
@@ -13,7 +14,7 @@ tags:
 related:
 - "MNT-GLOSS-006"
 - "MNT-GLOSS-007"
-- "MNT-TECH-002"
+- "MNT-TECH-003"
 audience:
 - "general"
 evidence_level: "high"
@@ -43,6 +44,6 @@ status: "approved"
 - «Когнитивная переоценка — одна из наиболее адаптивных стратегий эмоциональной регуляции».
 
 ## Связанные термины
-- [[MNT-GLOSS-006]] — Эмоциональный интеллект
-- [[MNT-GLOSS-007]] — Осознанность
-- [[MNT-TECH-002]] — Дневник эмоций
+- [[MNT-GLOSS-006]] — Эмоциональный интеллект(depends_on)
+- [[MNT-GLOSS-007]] — Осознанность (relates_to)
+- [[MNT-TECH-003]] — Медитация осознанности (relates_to)

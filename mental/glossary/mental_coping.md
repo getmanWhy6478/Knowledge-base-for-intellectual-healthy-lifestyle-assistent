@@ -8,12 +8,12 @@ tags:
 - стресс
 - психология
 - general
-- рекомендация
+- информирование
 - advanced
 related:
 - "MNT-GLOSS-002"
-- "MNT-GLOSS-009"
-- "MNT-TECH-001"
+- "MNT-GLOSS-005"
+- "MNT-GLOSS-004"
 audience:
 - "general"
 evidence_level: "high"
@@ -44,6 +44,6 @@ status: "approved"
 - «Развитие гибкого репертуара копинг-стратегий — ключевой навык психологической устойчивости».
 
 ## Связанные термины
-- [[MNT-GLOSS-002]] — Стресс
-- [[MNT-GLOSS-005]] — Резильентность
-- [[MNT-TECH-001]] — Дыхательные техники
+- [[MNT-GLOSS-002]] — Стресс (relates_to)
+- [[MNT-GLOSS-005]] — Резильентность (synergy_with)
+- [[MNT-GLOSS-004]] — Эмоциональная регуляция (relates_to)

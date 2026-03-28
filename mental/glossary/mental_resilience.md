@@ -14,6 +14,7 @@ related:
 - "MNT-GLOSS-001"
 - "MNT-GLOSS-002"
 - "MNT-GLOSS-003"
+- "MNT-GLOSS-009"
 audience:
 - "general"
 evidence_level: "moderate"
@@ -43,7 +44,7 @@ status: "approved"
 - «Высокий уровень резильентности снижает риск развития депрессии после стрессовых событий».
 
 ## Связанные термины
-- [[MNT-GLOSS-001]] — Ментальное здоровье
-- [[MNT-GLOSS-002]] — Стресс
-- [[MNT-GLOSS-003]] — Копинг-стратегии
-- [[MNT-GLOSS-009]] — Самопомощь
+- [[MNT-GLOSS-001]] — Ментальное здоровье (relates_to)
+- [[MNT-GLOSS-002]] — Стресс (relates_to)
+- [[MNT-GLOSS-003]] — Копинг-стратегии (synergy_with)
+- [[MNT-GLOSS-009]] — Самопомощь (relates_to)

@@ -11,9 +11,11 @@ tags:
 - информирование
 - core
 related:
-- "MNT-GLOSS-001"
 - "MNT-GLOSS-003"
 - "MNT-GLOSS-010"
+- "MNT-GLOSS-001"
+- "MNT-TECH-001"
+- "MNT-HABIT-003"
 audience:
 - "general"
 evidence_level: "high"
@@ -43,6 +45,8 @@ status: "approved"
 - «Эффективные копинг-стратегии помогают снизить негативное влияние стресса на здоровье».
 
 ## Связанные термины
-- [[MNT-GLOSS-003]] — Копинг-стратегии
-- [[MNT-GLOSS-010]] — Выгорание
-- [[MNT-GLOSS-001]] — Ментальное здоровье
+- [[MNT-GLOSS-003]] — Копинг-стратегии (relates_to)
+- [[MNT-GLOSS-010]] — Выгорание профессиональное (generalizes)
+- [[MNT-GLOSS-001]] — Ментальное здоровье (relates_to)
+- [[MNT-TECH-001]] — Дыхательная техника 4-7-8 (synergy_with)
+- [[MNT-HABIT-003]] — Хронический недосып (risk_with)

@@ -4,16 +4,19 @@ title: "Циркадные ритмы"
 domain: "mental"
 category: "glossary"
 tags:
+- режим
 - сон
 - циркадные_ритмы
 - биоритмы
 - general
 - информирование
-- specialized
+- advanced
 related:
 - "MNT-GLOSS-009"
-- "NUT-RULE-015"
 - "GLB-GLOSS-005"
+- "MNT-HABIT-001"
+- "MNT-RULE-014"
+- "MNT-RULE-020"
 audience:
 - "general"
 evidence_level: "high"
@@ -43,6 +46,8 @@ status: "approved"
 - «Регулярный режим сна поддерживает синхронизацию циркадных ритмов и улучшает ментальное здоровье».
 
 ## Связанные термины
-- [[MNT-GLOSS-009]] — Гигиена сна
-- [[NUT-RULE-015]] — Питание и качество сна
+- [[MNT-GLOSS-009]] — Гигиена сна (is_part_of)
 - [[GLB-GLOSS-005]] — Восстановление
+- [[MNT-HABIT-001]] — Вечерний ритуал отключения (supplements)
+- [[MNT-RULE-014]] — Правило утреннего света для регуляции циркадных ритмов (supplements)
+- [[MNT-RULE-020]] — Правило гигиены сна для восстановления (supplements)

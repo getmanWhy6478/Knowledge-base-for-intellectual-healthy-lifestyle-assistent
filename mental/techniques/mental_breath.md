@@ -14,6 +14,8 @@ related:
 - "MNT-GLOSS-002"
 - "MNT-GLOSS-003"
 - "MNT-COND-001"
+- "MNT-TECH-003"
+- "MNT-FACT-004"
 audience:
 - "general"
 evidence_level: "moderate"
@@ -59,6 +61,8 @@ status: "approved"
 - [[MNT-GLOSS-003]] — Копинг-стратегии (supplements)
 - [[MNT-COND-001]] — Тревожность (requires)
 - [[MNT-TECH-003]] — Медитация осознанности (synergy_with)
+- [[MNT-FACT-004]] — Дыхательные техники могут быстро снизить уровень острого стресса (relates_to)
+
 
 ## Источники
 1. Weil A. Breathing: the master key to self-healing. Sounds True, 2015.

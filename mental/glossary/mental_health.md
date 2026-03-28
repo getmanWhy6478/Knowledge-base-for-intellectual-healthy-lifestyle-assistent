@@ -13,6 +13,8 @@ related:
 - "MNT-GLOSS-002"
 - "MNT-GLOSS-005"
 - "GLB-GLOSS-001"
+- "MNT-GLOSS-004"
+- "MNT-GLOSS-009"
 audience:
 - "general"
 evidence_level: "high"
@@ -43,6 +45,8 @@ status: "approved"
 - «ВОЗ определяет ментальное здоровье как фундамент для индивидуального и коллективного функционирования».
 
 ## Связанные термины
-- [[MNT-GLOSS-002]] — Стресс
-- [[MNT-GLOSS-005]] — Резильентность
+- [[MNT-GLOSS-002]] — Стресс (relates_to)
+- [[MNT-GLOSS-005]] — Резильентность (relates_to)
 - [[GLB-GLOSS-001]] — Здоровый образ жизни
+- [[MNT-GLOSS-004]] — Эмоциональная регуляция (relates_to)
+- [[MNT-GLOSS-009]] — Выгорание профессиональное (contradicts)

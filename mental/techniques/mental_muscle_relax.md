@@ -14,6 +14,7 @@ related:
 - "MNT-GLOSS-002"
 - "MNT-GLOSS-009"
 - "MNT-SELF-001"
+- "MNT-SELF-008"
 audience:
 - "general"
 evidence_level: "high"
@@ -57,8 +58,8 @@ status: "approved"
 ## Связанные темы
 - [[MNT-GLOSS-002]] — Стресс (relates_to)
 - [[MNT-GLOSS-009]] — Гигиена сна (supplements)
-- [[MNT-SELF-001]] — Сценарий помощи при панической атаке (requires)
-- [[SPR-RULE-018]] — Восстановление после нагрузки (synergy_with)
+- [[MNT-SELF-001]] — Сценарий помощи при панической атаке (relates_to)
+- [[MNT-SELF-008]] — Сценарий: засыпание при тревожных мыслях (relates_to)
 
 ## Источники
 1. Jacobson E. Progressive relaxation: A physiological and clinical investigation of muscular states. University of Chicago Press, 1938.

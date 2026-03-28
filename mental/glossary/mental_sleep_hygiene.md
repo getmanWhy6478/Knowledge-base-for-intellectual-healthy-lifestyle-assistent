@@ -4,16 +4,19 @@ title: "Гигиена сна"
 domain: "mental"
 category: "glossary"
 tags:
+- здоровый_сон
 - сон
 - гигиена_сна
 - восстановление
 - general
-- рекомендация
+- информирование
 - core
 related:
 - "MNT-GLOSS-008"
-- "MNT-RULE-012"
-- "SPR-RULE-018"
+- "MNT-HABIT-009"
+- "MNT-RULE-002"
+- "MNT-RULE-020"
+- "MNT-SELF-008"
 audience:
 - "general"
 evidence_level: "high"
@@ -43,6 +46,8 @@ status: "approved"
 - «Регулярное время отхода ко сну и подъёма укрепляет циркадные ритмы».
 
 ## Связанные термины
-- [[MNT-GLOSS-008]] — Циркадные ритмы
-- [[MNT-RULE-012]] — Рекомендации по режиму сна
-- [[SPR-RULE-018]] — Физическая активность и качество сна
+- [[MNT-GLOSS-008]] — Циркадные ритмы (generalizes)
+- [[MNT-HABIT-009]] — Руминация перед сном (relates_to)
+- [[MNT-RULE-002]] — Правило утренней настройки (relates_to)
+- [[MNT-RULE-020]] — Правило гигиены сна для восстановления (relates_to)
+- [[MNT-SELF-008]] — Сценарий: засыпание при тревожных мыслях (relates_to)
