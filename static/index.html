@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Помощник ЗОЖ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🌿 Помощник по Здоровому Образу Жизни</h1>
+            <p>Научно обоснованные советы по питанию и активности</p>
+        </header>
+
+        <nav class="mode-tabs" aria-label="Режим работы">
+            <button class="tab-button active" id="tabSearch" type="button" onclick="setMode('search')">🔎 Поиск</button>
+            <button class="tab-button" id="tabBrowse" type="button" onclick="setMode('browse')">🗂️ Обзор базы</button>
+        </nav>
+
+        <div class="search-box">
+            <input type="text" id="queryInput" placeholder="Введите запрос: например «как улучшить сон», «сколько ходить в день», «что такое гликемический индекс», «как снизить тревожность»...">
+            <button id="searchButton" onclick="performSearch()">🔍 Найти</button>
+        </div>
+
+        <section id="browsePanel" class="browse-panel" style="display:none;">
+            <div class="browse-controls">
+                <div class="control">
+                    <label for="domainSelect">Домен</label>
+                    <select id="domainSelect">
+                        <option value="">— выберите —</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label for="categorySelect">Категория</label>
+                    <select id="categorySelect" disabled>
+                        <option value="">— выберите —</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="browse-content">
+                <div class="browse-list">
+                    <div class="browse-list-header">
+                        <h2>Карточки</h2>
+                        <div id="browseCount" class="browse-count"></div>
+                    </div>
+                    <div id="cardsList" class="cards-list"></div>
+                </div>
+
+                <div class="browse-detail">
+                    <div class="browse-detail-header">
+                        <h2>Просмотр карточки</h2>
+                        <div id="cardMeta" class="card-meta-small"></div>
+                    </div>
+                    <div id="cardDetail" class="card-detail-empty">
+                        Выберите карточку слева, чтобы увидеть содержимое.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="loader" class="loader">⏳ Загрузка знаний...</div>
+        <div id="resultsArea"></div>
+        <div id="disclaimerArea"></div>
+
+        <footer class="footer">
+            <p>© 2025 Health Assistant. Информация не заменяет консультацию врача.</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
