@@ -10,7 +10,7 @@ const API_BASE_URL = '';  // Пустая строка = тот же домен 
 const SEARCH_ENDPOINT = '/api/search';
 const MAX_RESULTS = 10;
 const BROWSE_DOMAINS_ENDPOINT = '/api/browse/domains';
-const RELEVANCE_THRESHOLD = 0.35;
+const RELEVANCE_THRESHOLD = 0.38;
 
 // =============================================================================
 // ЭЛЕМЕНТЫ DOM
@@ -334,6 +334,10 @@ async function performSearch() {
 function handleApiResponse(data) {
     // 🔍 Поддержка обоих имён поля (data / results)
     const results = data.data || data.results || [];
+    if (data.meta?.suggestions && data.meta.suggestions.length > 0) {
+        showSuggestions(data.meta.suggestions);
+    return;
+}
     const warning = data.warning;
     const message = data.message || '';
     const disclaimer = data.disclaimer || '';
@@ -395,15 +399,29 @@ function handleApiResponse(data) {
         </div>
     `;
 }
-let forceShow = false;
-// Показать результаты несмотря на низкую релевантность
-function forceShowResults() {
-    const query = searchInput ? searchInput.value.trim() : '';
-    if (!query) return;
+function showSuggestions(suggestions) {
+    if (!resultsArea) return;
 
-    // Повторный поиск с тем же запросом, но без проверки релевантности
-    performSearch(true);
+    resultsArea.innerHTML = `
+        <div class="query-suggestions">
+            <div class="suggestions-icon">💡</div>
+            <h3>Возможно, вы искали:</h3>
+            <div class="suggestions-list">
+                ${suggestions.map(s =>
+                    `<button class="suggestion-chip" onclick="searchWithQuery('${escapeHtml(s)}')">
+                        ${escapeHtml(s)}
+                    </button>`
+                ).join('')}
+            </div>
+            <p class="suggestions-hint">Нажмите на подсказку, чтобы выполнить поиск</p>
+        </div>
+    `;
 }
+function searchWithQuery(newQuery) {
+    if (searchInput) searchInput.value = newQuery;
+    performSearch();
+}
+window.searchWithQuery = searchWithQuery;
 
 }
 
@@ -451,14 +469,6 @@ function createCardHtml(card, score, index) {
         `<span class="tag">${escapeHtml(tag)}</span>`
     ).join('');
 
-    // Предупреждение карточки (если есть риски или требуется консультация)
-    const warningHtml = (card.content && card.content.risks) || card.requires_medical_consultation ? `
-        <div class="card-warning">
-            <strong>⚠️ Важно:</strong>
-            ${escapeHtml((card.content.risks || []).slice(0, 2).join('; ') || 'Проконсультируйтесь со специалистом')}
-        </div>
-    ` : '';
-
     // Оценка релевантности (для отладки)
     const scoreHtml = score ? `
         <div class="relevance-score">
@@ -473,7 +483,7 @@ function createCardHtml(card, score, index) {
             <ul>
                 ${Object.entries(card.content.key_properties)
                     .slice(0, 4)
-                    .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</li>`)
+                    .map(([key, value]) => `<li><strong>${processMarkdown(key)}:</strong> ${processMarkdown(value)}</li>`)
                     .join('')}
             </ul>
         </div>
@@ -484,7 +494,7 @@ function createCardHtml(card, score, index) {
         <div class="card-benefits">
             <h4>✅ Преимущества:</h4>
             <ul>
-                ${(card.content.benefits || []).slice(0, 3).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+                ${(card.content.benefits || []).slice(0, 3).map(b => `<li>${processMarkdown(b)}</li>`).join('')}
             </ul>
         </div>
     ` : '';
@@ -492,7 +502,7 @@ function createCardHtml(card, score, index) {
     const ruleStatementHtml = card.content && card.content.rule_statement ? `
         <div class="card-section">
             <h4>📜 Формулировка правила:</h4>
-            <div class="card-section-text">${escapeHtml(card.content.rule_statement)}</div>
+            <div class="card-section-text">${processMarkdown(card.content.rule_statement)}</div>
         </div>
     ` : '';
 
@@ -500,7 +510,7 @@ function createCardHtml(card, score, index) {
     const essenceHtml = card.content && card.content.essence ? `
         <div class="card-section">
             <h4>💡 Суть рекомендации:</h4>
-            <div class="card-section-text">${escapeHtml(card.content.essence)}</div>
+            <div class="card-section-text">${processMarkdown(card.content.essence)}</div>
         </div>
     ` : '';
 
@@ -508,7 +518,7 @@ function createCardHtml(card, score, index) {
     const practicalApplicationHtml = card.content && card.content.practical_application ? `
         <div class="card-section">
             <h4>🔧 Практическое применение:</h4>
-            <div class="card-section-text">${escapeHtml(card.content.practical_application)}</div>
+            <div class="card-section-text">${processMarkdown(card.content.practical_application)}</div>
         </div>
     ` : '';
 
@@ -516,7 +526,7 @@ function createCardHtml(card, score, index) {
     const specialwarningHtml = card.content && card.content.warning ? `
         <div class="card-warning" style="margin: 20px 0; padding: 15px 20px; background: var(--warning-light); border-radius: var(--radius-small); border-left: 4px solid var(--warning-color);">
             <strong>⚠️ Важное предупреждение:</strong>
-            <div style="margin-top: 8px; color: var(--text-primary);">${escapeHtml(card.content.warning)}</div>
+            <div style="margin-top: 8px; color: var(--text-primary);">${processMarkdown(card.content.warning)}</div>
         </div>
     ` : '';
 
@@ -525,7 +535,7 @@ function createCardHtml(card, score, index) {
             <div class="card-recommendations">
                 <h4>💡 Рекомендации:</h4>
                 <ul>
-                    ${(card.content.recommendations || []).slice(0, 8).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                    ${(card.content.recommendations || []).slice(0, 8).map(r => `<li>${processMarkdown(r)}</li>`).join('')}
                 </ul>
             </div>
         ` : '';
@@ -535,7 +545,7 @@ function createCardHtml(card, score, index) {
         <div class="card-sources">
             <h4>📚 Источники:</h4>
             <ol>
-                ${(card.sources || []).slice(0, 3).map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                ${(card.sources || []).slice(0, 3).map(s => `<li>${processMarkdown(s)}</li>`).join('')}
             </ol>
         </div>
     ` : '';
@@ -553,12 +563,12 @@ function createCardHtml(card, score, index) {
                     return `
                         <a href="#" class="related-topic-link" onclick="openCardById('${cardId}'); return false;">
                             <span class="topic-id">${cardId}</span>
-                            <span class="topic-title">${escapeHtml(title)}</span>
-                            <span class="topic-type">${escapeHtml(relationType)}</span>
+                            <span class="topic-title">${processMarkdown(title)}</span>
+                            <span class="topic-type">${processMarkdown(relationType)}</span>
                         </a>
                     `;
                 }
-                return `<span class="related-topic-plain">${escapeHtml(topic)}</span>`;
+                return `<span class="related-topic-plain">${processMarkdown(topic)}</span>`;
             }).join('')}
         </div>
     </div>
@@ -570,8 +580,8 @@ function createCardHtml(card, score, index) {
         if (!value) return '';
         return `
             <div class="card-section">
-                <h4>${icon ? `${icon} ` : ''}${escapeHtml(title)}</h4>
-                <div class="card-section-text">${escapeHtml(value)}</div>
+                <h4>${icon ? `${icon} ` : ''}${processMarkdown(title)}</h4>
+                <div class="card-section-text">${processMarkdown(value)}</div>
             </div>
         `;
     };
@@ -581,9 +591,9 @@ function createCardHtml(card, score, index) {
         if (!list.length) return '';
         return `
             <div class="card-section">
-                <h4>${icon ? `${icon} ` : ''}${escapeHtml(title)}</h4>
+                <h4>${icon ? `${icon} ` : ''}${processMarkdown(title)}</h4>
                 <ul>
-                    ${list.slice(0, maxItems).map(x => `<li>${escapeHtml(String(x))}</li>`).join('')}
+                    ${list.slice(0, maxItems).map(x => `<li>${processMarkdown(String(x))}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -621,7 +631,7 @@ function createCardHtml(card, score, index) {
             <div class="card-content">
                 ${(card.content && card.content.definition) ? `
                     <div class="card-definition">
-                        <strong>Определение:</strong> ${escapeHtml(card.content.definition)}
+                        <strong>Определение:</strong> ${processMarkdown(card.content.definition)}
                     </div>
                 ` : ''}
 
@@ -644,7 +654,7 @@ function createCardHtml(card, score, index) {
                     }
                     return `
                     <div class="card-description">
-                        ${escapeHtml(rawDesc)}
+                        ${processMarkdown(rawDesc)}
                     </div>`;
                 })()}
 
@@ -660,12 +670,10 @@ function createCardHtml(card, score, index) {
                 ${sourcesHtml}
             </div>
 
-            ${warningHtml}
-
             <footer class="card-footer">
                 <div class="card-tags">${tagsHtml}</div>
                 <div class="card-evidence">
-                    📊 Доказательность: <strong>${escapeHtml(card.evidence_level || 'N/A')}</strong>
+                    📊 Доказательность: <strong>${processMarkdown(card.evidence_level || 'N/A')}</strong>
                 </div>
             </footer>
         </article>
@@ -800,6 +808,23 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function processMarkdown(text) {
+    if (!text) return '';
+
+    // Сначала экранируем HTML для безопасности
+    let processed = escapeHtml(text);
+
+    // ✅ Жирный текст: **текст** → <strong>текст</strong>
+    processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // ✅ Курсив: *текст* → <em>текст</em>
+    processed = processed.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // ✅ Переносы строк: \n → <br>
+    processed = processed.replace(/\n/g, '<br>');
+
+    return processed;
+}
 // =============================================================================
 // ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ (для будущего расширения)
 // =============================================================================

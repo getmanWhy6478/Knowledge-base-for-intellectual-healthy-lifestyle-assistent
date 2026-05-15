@@ -90,7 +90,15 @@ async def search_endpoint(query: SearchQuery):
     """Поиск по базе знаний ЗОЖ"""
     if not search_engine:
         raise HTTPException(status_code=503, detail="Search engine not initialized")
-
+    if search_engine.validator:
+        is_valid, error_msg, suggestions = search_engine.validator.validate(query.query)
+        if not is_valid and error_msg:
+            return APIResponse(
+                success=True,
+                results=[],
+                message=error_msg,
+                meta={"suggestions": suggestions} if suggestions else None
+            )
     # 1. Проверка безопасности запроса
     safety_warning = check_query_safety(query.query)
 

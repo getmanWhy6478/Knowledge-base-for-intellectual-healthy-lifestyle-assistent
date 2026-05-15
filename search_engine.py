@@ -12,7 +12,7 @@ from models import (
     EvidenceLevel
 )
 from loader import load_knowledge_base
-
+from query_validator import QueryValidator, create_validator_from_cards
 
 class SearchEngine:
     """
@@ -31,6 +31,7 @@ class SearchEngine:
         self.model = SentenceTransformer(model_name)
         self.cards: List[KnowledgeCard] = []
         self.embeddings: Optional[np.ndarray] = None
+        self.validator = None
 
         if load_on_init:
             self.load_knowledge_base(kb_path)
@@ -40,12 +41,14 @@ class SearchEngine:
         print(f"🔄 Загрузка базы знаний из {directory}...")
 
         self.cards = load_knowledge_base(directory)
+        self.validator = create_validator_from_cards(self.cards)
         if not self.cards:
             print("⚠️ База знаний пуста!")
             return
 
         # Генерируем эмбеддинги для поиска
         search_texts = [card.get_search_text() for card in self.cards]
+
         self.embeddings = self.model.encode(search_texts, show_progress_bar=True)
 
         print(f"✅ Индексировано {len(self.cards)} карточек. Векторы: {self.embeddings.shape}")
@@ -57,7 +60,11 @@ class SearchEngine:
         """
         if not self.cards or self.embeddings is None:
             return []
-
+        if self.validator:
+            is_valid, error_msg, suggestions = self.validator.validate(query.query)
+            if not is_valid and error_msg:
+                # Возвращаем пустой результат с подсказками
+                return []  # Или можно кастомизировать ответ
         # 1. Векторизуем запрос
         normalized_query = (query.query or "").strip().lower()
         query_embedding = self.model.encode([normalized_query])[0]

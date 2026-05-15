@@ -1290,3 +1290,53 @@ a:hover {
         justify-content: space-between;
     }
 }
+.query-suggestions {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-light);
+    border: 2px dashed var(--secondary-color);
+}
+
+.suggestions-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.query-suggestions h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.suggestion-chip {
+    padding: 10px 20px;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 2px solid var(--primary-color);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.suggestion-chip:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.suggestions-hint {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
