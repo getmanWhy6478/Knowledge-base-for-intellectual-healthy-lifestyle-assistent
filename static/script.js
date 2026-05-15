@@ -292,7 +292,6 @@ async function performSearch() {
     }
 
     // Очистка предыдущих результатов
-    forceShow = force;
     clearResults();
     showLoader(true);
 
@@ -329,8 +328,6 @@ async function performSearch() {
         showLoader(false);
     }
 }
-
-window.forceShowResults = forceShowResults;
 // =============================================================================
 // ОБРАБОТКА ОТВЕТА API
 // =============================================================================
@@ -516,26 +513,19 @@ function createCardHtml(card, score, index) {
     ` : '';
 
     // Важное предупреждение (универсальное)
-    const warningHtml = card.content && card.content.warning ? `
+    const specialwarningHtml = card.content && card.content.warning ? `
         <div class="card-warning" style="margin: 20px 0; padding: 15px 20px; background: var(--warning-light); border-radius: var(--radius-small); border-left: 4px solid var(--warning-color);">
             <strong>⚠️ Важное предупреждение:</strong>
             <div style="margin-top: 8px; color: var(--text-primary);">${escapeHtml(card.content.warning)}</div>
         </div>
     ` : '';
 
-    // Когда требуется внимание специалиста (универсальное)
-    const visitHtml = card.content && card.content.visit ? `
-        <div class="card-section" style="background: var(--danger-light); border-left-color: var(--danger-color);">
-            <h4>👨‍⚕️ Когда требуется внимание специалиста:</h4>
-            <div class="card-section-text">${escapeHtml(card.content.visit)}</div>
-        </div>
-    ` : '';
     // Рекомендации
         const recommendationsHtml = card.content && card.content.recommendations ? `
             <div class="card-recommendations">
                 <h4>💡 Рекомендации:</h4>
                 <ul>
-                    ${(card.content.recommendations || []).slice(0, 3).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                    ${(card.content.recommendations || []).slice(0, 8).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
                 </ul>
             </div>
         ` : '';
@@ -549,6 +539,30 @@ function createCardHtml(card, score, index) {
             </ol>
         </div>
     ` : '';
+    const relatedTopicsHtml = card.content && card.content.related_topics ? `
+    <div class="card-related-topics">
+        <h4>🔗 Связанные темы:</h4>
+        <div class="related-topics-list">
+            ${(card.content.related_topics || []).map(topic => {
+                // Парсим: "MNT-COND-001 — Тревожность (relates_to)"
+                const match = topic.match(/([A-Z0-9\-]+)\s*—\s*(.+?)\s*\((\w+)\)/);
+                if (match) {
+                    const cardId = match[1];
+                    const title = match[2];
+                    const relationType = match[3];
+                    return `
+                        <a href="#" class="related-topic-link" onclick="openCardById('${cardId}'); return false;">
+                            <span class="topic-id">${cardId}</span>
+                            <span class="topic-title">${escapeHtml(title)}</span>
+                            <span class="topic-type">${escapeHtml(relationType)}</span>
+                        </a>
+                    `;
+                }
+                return `<span class="related-topic-plain">${escapeHtml(topic)}</span>`;
+            }).join('')}
+        </div>
+    </div>
+` : '';
 
     // Универсальный рендер секций, которые раньше не выводились
     const renderTextSection = (title, text, icon) => {
@@ -575,6 +589,8 @@ function createCardHtml(card, score, index) {
         `;
     };
 
+    // Поля ниже не дублируем: rule_statement / essence / practical_application / warning
+    // уже выведены отдельными блоками выше.
     const extraSectionsHtml = (card.content ? `
         ${renderTextSection('Тип', card.content.type, '🏷️')}
         ${renderTextSection('Вердикт', card.content.verdict, '🧾')}
@@ -585,15 +601,10 @@ function createCardHtml(card, score, index) {
         ${renderTextSection('Условия применимости', card.content.applicability, '🧭')}
         ${renderTextSection('Контекст', card.content.context, '🗺️')}
         ${renderTextSection('Корректная формулировка', card.content.correct_formulation, '✅')}
-        ${renderTextSection('Определение (вариант)', card.content.definition1, '📌')}
         ${renderListSection('Синонимы', card.content.synonyms, '🔁', 8)}
         ${renderTextSection('Контекст использования', card.content.usage_context, '🗣️')}
         ${renderListSection('Примеры употребления', card.content.usage_examples, '✍️', 6)}
         ${renderTextSection('Когда требуется внимание специалиста', card.content.visit, '👨‍️')}
-        ${renderTextSection('Важное предупреждение', card.content.warning, '⚠️')}
-        ${renderTextSection('Формулировка правила', card.content.rule_statement, '📜')}
-        ${renderTextSection('Суть рекомендации', card.content.essence, '💡')}
-        ${renderTextSection('Практическое применение', card.content.practical_application, '🔧')}
     ` : '');
 
     return `
@@ -614,21 +625,38 @@ function createCardHtml(card, score, index) {
                     </div>
                 ` : ''}
 
-                ${(card.content && card.content.description) ? `
+                ${(() => {
+                    const rawDesc = (card.content && card.content.description) ? String(card.content.description).trim() : '';
+                    const rawDef = (card.content && card.content.definition) ? String(card.content.definition).trim() : '';
+                    const typeVal = (card.content && card.content.type) ? String(card.content.type).trim() : '';
+                    if (!rawDesc) return '';
+                    const descNorm = rawDesc.replace(/\r\n/g, '\n');
+                    const defNorm = rawDef.replace(/\r\n/g, '\n');
+                    if (defNorm && descNorm === defNorm) return '';
+                    if (defNorm && /^определение\s*\n/i.test(descNorm)) {
+                        const body = descNorm.replace(/^определение\s*\n/i, '').trim();
+                        if (body === defNorm) return '';
+                    }
+                    if (typeVal) {
+                        const esc = typeVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        if (new RegExp(`^тип\\s*\\n\\s*${esc}\\s*$`, 'i').test(descNorm)) return '';
+                        if (descNorm === typeVal) return '';
+                    }
+                    return `
                     <div class="card-description">
-                        ${escapeHtml(card.content.description)}
-                    </div>
-                ` : ''}
+                        ${escapeHtml(rawDesc)}
+                    </div>`;
+                })()}
 
-                ${warningHtml}
+                ${specialwarningHtml}
                 ${ruleStatementHtml}
                 ${essenceHtml}
                 ${propertiesHtml}
                 ${benefitsHtml}
-                ${visitHtml}
                 ${practicalApplicationHtml}
                 ${recommendationsHtml}
                 ${extraSectionsHtml}
+                ${relatedTopicsHtml}
                 ${sourcesHtml}
             </div>
 

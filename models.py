@@ -125,6 +125,10 @@ class KnowledgeContent(BaseModel):
     """Базовое содержимое карточки (общее для всех типов)"""
     definition: Optional[str] = Field(None, description="Определение", max_length=500)
     description: str = Field(..., description="Описание", min_length=1)
+    related_topics: Optional[List[str]] = Field(
+        None,
+        description="Связанные темы"
+    )
 
     # Универсальные блоки (используются выборочно в зависимости от типа)
     context: Optional[str] = Field(None, description="Контекст применения")
@@ -150,7 +154,6 @@ class KnowledgeContent(BaseModel):
     correct_formulation: Optional[str] = Field(None, description="Корректная формулировка (для мифов)")
 
     # Для глоссария
-    definition1: Optional[str] = Field(None, description="Определение")
     synonyms: Optional[List[str]] = Field(None, description="Синонимы термина")
     usage_context: Optional[str] = Field(None, description="Контекст использования термина")
     usage_examples: Optional[List[str]] = Field(None, description="Примеры употребления")

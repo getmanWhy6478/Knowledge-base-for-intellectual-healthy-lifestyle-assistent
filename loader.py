@@ -55,6 +55,7 @@ SECTION_MAP = {
     'когда требуется внимание специалиста': 'visit',
     'важное предупреждение': 'warning',
     'формулировка правила': 'rule_statement',
+    'связанные темы': 'related_topics',
 
 }
 
@@ -154,6 +155,11 @@ def parse_markdown_body(md_text: str) -> dict:
 
         # Маппим заголовок на поле
         field_name = SECTION_MAP.get(header, header.replace(' ', '_'))
+        if field_name == 'related_topics':
+            parsed = parse_related_topics(content)
+            if parsed:
+                result[field_name] = parsed
+            continue
 
         if field_name == 'key_properties':
             parsed = parse_key_value_list(content)
@@ -204,7 +210,39 @@ def parse_markdown_body(md_text: str) -> dict:
                 cleaned.append(item)
             result[list_field] = cleaned or None
 
+    _normalize_description_field(result)
     return result
+
+
+def _normalize_description_field(result: dict) -> None:
+    """
+    Убирает типичные дубли с автополем description:
+    то же, что «Определение», или строка «Тип» + значение поля type.
+    """
+    desc = (result.get("description") or "").strip()
+    if not desc:
+        return
+    desc_norm = desc.replace("\r\n", "\n")
+
+    defn = (result.get("definition") or "").strip().replace("\r\n", "\n")
+    if defn:
+        body_after_heading = desc_norm
+        m_def = re.match(r"(?i)^определение\s*\n\s*(.*)$", desc_norm, re.DOTALL)
+        if m_def:
+            body_after_heading = m_def.group(1).strip()
+        if desc_norm == defn or body_after_heading == defn:
+            result["description"] = defn
+            return
+
+    typ = (result.get("type") or "").strip()
+    if typ and re.match(
+        r"^тип\s*\n\s*" + re.escape(typ) + r"\s*$",
+        desc_norm,
+        re.IGNORECASE,
+    ):
+        # Не подставляем вердикт/разбор — иначе дублируются отдельные секции карточки.
+        result["description"] = typ
+
 
 
 def parse_list_items(text: str) -> Optional[List[str]]:
@@ -255,7 +293,28 @@ def parse_key_value_list(text: str) -> Optional[Dict[str, str]]:
             if key and value:
                 result[key] = value
     return result if result else None
-
+def parse_related_topics(text: str) -> Optional[List[str]]:
+    """
+    Парсит связанные темы в формате:
+    [[MNT-COND-001]] — Тревожность (relates_to)
+    """
+    items = []
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        # Ищем паттерн [[ID]] — Название (type)
+        match = re.match(r'\[\[([A-Z0-9\-]+)\]\]\s*—\s*(.+?)\s*\((\w+)\)', line)
+        if match:
+            card_id = match.group(1)
+            title = match.group(2).strip()
+            relation_type = match.group(3).strip()
+            items.append(f"{card_id} — {title} ({relation_type})")
+        else:
+            # Если не совпало — добавляем как есть
+            if line and not line.startswith('#'):
+                items.append(line)
+    return items if items else None
 
 # =============================================================================
 # СБОРКА КАРТОЧКИ
