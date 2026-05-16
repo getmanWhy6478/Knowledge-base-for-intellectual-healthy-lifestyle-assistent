@@ -56,7 +56,9 @@ SECTION_MAP = {
     'важное предупреждение': 'warning',
     'формулировка правила': 'rule_statement',
     'связанные темы': 'related_topics',
-
+    'суть связи': 'description',
+    'механизмы связи': 'context',
+    'ограничения знаний': 'risks',
 }
 
 # Поля, которые являются списками строк
@@ -138,6 +140,7 @@ def parse_markdown_body(md_text: str) -> dict:
     Парсит тело карточки с заголовками ## (и ###, встречается в части карточек).
     """
     result = {}
+    extra_sections: Dict[str, str] = {}
 
     # Сплитим по заголовкам ## / ###
     # Паттерн: перенос, затем ## или ###, пробел, название раздела
@@ -150,11 +153,23 @@ def parse_markdown_body(md_text: str) -> dict:
 
         # Первая строка — заголовок, остальное — контент
         lines = section.split('\n', 1)
-        header = lines[0].strip().lower()
+        header_title = lines[0].strip()
+        header = header_title.lower()
         content = lines[1].strip() if len(lines) > 1 else ''
 
-        # Маппим заголовок на поле
-        field_name = SECTION_MAP.get(header, header.replace(' ', '_'))
+        # Маппим заголовок на поле; неизвестные разделы — в extra_sections
+        field_name = SECTION_MAP.get(header)
+        if field_name is None:
+            text_value = content.strip()
+            if text_value:
+                if header_title in extra_sections:
+                    extra_sections[header_title] = (
+                        extra_sections[header_title].rstrip() + "\n\n" + text_value
+                    )
+                else:
+                    extra_sections[header_title] = text_value
+            continue
+
         if field_name == 'related_topics':
             parsed = parse_related_topics(content)
             if parsed:
@@ -209,6 +224,9 @@ def parse_markdown_body(md_text: str) -> dict:
                 seen.add(key)
                 cleaned.append(item)
             result[list_field] = cleaned or None
+
+    if extra_sections:
+        result['extra_sections'] = extra_sections
 
     _normalize_description_field(result)
     return result

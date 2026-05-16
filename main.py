@@ -156,6 +156,16 @@ DOMAIN_TITLES: Dict[str, str] = {
     "global": "Общее",
 }
 
+CATEGORY_TITLES: Dict[str, str] = {
+    "cross": "Междисциплинарные связи",
+    "glossary": "Глоссарий",
+    "ontology": "Онтология",
+    "fact": "Факты",
+    "myth": "Мифы",
+    "partially_true": "Частично верно",
+    "rule": "Правила",
+}
+
 
 @app.get("/api/browse/domains")
 async def browse_domains():
@@ -194,7 +204,14 @@ async def browse_categories(domain_id: str):
     if not categories_count:
         raise HTTPException(status_code=404, detail="Domain not found or empty")
 
-    categories = [{"id": cat, "count": categories_count[cat]} for cat in sorted(categories_count.keys())]
+    categories = [
+        {
+            "id": cat,
+            "title": CATEGORY_TITLES.get(cat, cat),
+            "count": categories_count[cat],
+        }
+        for cat in sorted(categories_count.keys())
+    ]
     return {"success": True, "domain": domain_id, "categories": categories}
 
 

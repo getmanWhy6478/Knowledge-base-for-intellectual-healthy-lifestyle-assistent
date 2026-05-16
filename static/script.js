@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================================================
 let currentMode = 'search';
 let currentBrowse = { domain: '', category: '' };
+let forceShow = false;
 
 function setMode(mode) {
     if (mode !== 'search' && mode !== 'browse') return;
@@ -158,7 +159,7 @@ async function onDomainChange() {
         if (!categorySelect) return;
         categorySelect.disabled = false;
         categorySelect.innerHTML = `<option value="">— выберите —</option>` + categories.map(c =>
-            `<option value="${escapeHtml(c.id)}">${escapeHtml(c.id)} (${c.count})</option>`
+            `<option value="${escapeHtml(c.id)}">${escapeHtml(c.title || c.id)} (${c.count})</option>`
         ).join('');
 
         // сброс списка карточек/деталей
@@ -273,14 +274,18 @@ window.openCardById = openCardById;
 // =============================================================================
 // ОСНОВНАЯ ФУНКЦИЯ ПОИСКА
 // =============================================================================
-async function performSearch() {
+async function performSearch(force = false) {
+    // ✅ СБРОС ФЛАГА (если не принудительный вызов)
+    if (!force) {
+        forceShow = false;
+    }
+
     if (currentMode === 'browse') {
-        // В режиме обзора Enter/кнопка не должны запускать поиск случайно
         setMode('search');
     }
+
     const query = searchInput ? searchInput.value.trim() : '';
 
-    // Валидация ввода
     if (!query) {
         showNotification('⚠️ Введите запрос для поиска', 'warning');
         return;
@@ -291,34 +296,26 @@ async function performSearch() {
         return;
     }
 
-    // Очистка предыдущих результатов
     clearResults();
     showLoader(true);
 
     try {
-        console.log('🔍 Отправка запроса:', query);
+        console.log('🔍 Отправка запроса:', query, '(forceShow =', forceShow, ')');
 
         const response = await fetch(`${API_BASE_URL}${SEARCH_ENDPOINT}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: query,
-                top_k: MAX_RESULTS
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, top_k: MAX_RESULTS })
         });
 
-        // Проверка статуса HTTP
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(errorData.detail || `HTTP ${response.status}`);
         }
 
         const data = await response.json();
         console.log('✅ Ответ сервера:', data);
 
-        // Обработка ответа
         handleApiResponse(data);
 
     } catch (error) {
@@ -332,23 +329,18 @@ async function performSearch() {
 // ОБРАБОТКА ОТВЕТА API
 // =============================================================================
 function handleApiResponse(data) {
-    // 🔍 Поддержка обоих имён поля (data / results)
     const results = data.data || data.results || [];
-    if (data.meta?.suggestions && data.meta.suggestions.length > 0) {
-        showSuggestions(data.meta.suggestions);
-    return;
-}
     const warning = data.warning;
     const message = data.message || '';
     const disclaimer = data.disclaimer || '';
 
-    // 1. Если есть критическое предупреждение безопасности
+    // 1. Критическое предупреждение
     if (warning && warning.is_critical) {
         showSafetyWarning(warning);
         return;
     }
 
-    // 2. Если есть обычное предупреждение
+    // 2. Обычное предупреждение
     if (warning && warning.message) {
         showSafetyWarning(warning);
     }
@@ -359,22 +351,29 @@ function handleApiResponse(data) {
         return;
     }
 
-    const maxScore = Math.max(...results.map(r => r.score || 0));
+    // ✅ 4. ПРОВЕРКА РЕЛЕВАНТНОСТИ (только если forceShow = false)
+    if (!forceShow) {
+        const maxScore = Math.max(...results.map(r => r.score || 0));
+        console.log('📊 Максимальная релевантность:', maxScore.toFixed(3));
 
-    if (maxScore < RELEVANCE_THRESHOLD) {
-        console.log(`⚠️ Низкая релевантность: maxScore = ${maxScore.toFixed(3)} < ${RELEVANCE_THRESHOLD}`);
-        showLowRelevance(results.length);
-        return;
+        if (maxScore < RELEVANCE_THRESHOLD) {
+            console.log('⚠️ Низкая релевантность, показываем предупреждение');
+            showLowRelevance(results.length);
+            return;  // 🔴 НЕ показываем результаты
+        }
+    } else {
+        console.log('✅ Принудительный показ результатов (forceShow = true)');
     }
 
-    // 4. Отображаем результаты
+    // 5. Отображаем результаты
     displayResults(results, message);
 
-    // 5. Показываем дисклеймер
+    // 6. Дисклеймер
     if (disclaimer) {
         showDisclaimer(disclaimer);
     }
-    function showLowRelevance(resultsCount) {
+}
+function showLowRelevance(resultsCount) {
     if (!resultsArea) return;
 
     resultsArea.innerHTML = `
@@ -385,8 +384,8 @@ function handleApiResponse(data) {
             <div class="low-relevance-tips">
                 <h4>💡 Рекомендации:</h4>
                 <ul>
-                    <li>Используйте более конкретные термины (например, "белки" вместо "питание")</li>
-                    <li>Добавьте контекст (например, "для похудения", "при диабете")</li>
+                    <li>Используйте более конкретные термины</li>
+                    <li>Добавьте контекст (например, "для похудения")</li>
                     <li>Проверьте орфографию</li>
                     <li>Попробуйте синонимы</li>
                 </ul>
@@ -399,6 +398,22 @@ function handleApiResponse(data) {
         </div>
     `;
 }
+
+// =============================================================================
+// ПРИНУДИТЕЛЬНЫЙ ПОКАЗ РЕЗУЛЬТАТОВ
+// =============================================================================
+function forceShowResults() {
+    console.log('🔘 Кнопка "Всё равно показать" нажата');
+
+    // ✅ Устанавливаем флаг
+    forceShow = true;
+
+    // ✅ Повторяем поиск с тем же запросом
+    performSearch(true);
+}
+
+// Делаем доступной для inline onclick
+window.forceShowResults = forceShowResults;
 function showSuggestions(suggestions) {
     if (!resultsArea) return;
 
@@ -418,12 +433,13 @@ function showSuggestions(suggestions) {
     `;
 }
 function searchWithQuery(newQuery) {
-    if (searchInput) searchInput.value = newQuery;
+    if (searchInput)
+        searchInput.value = newQuery;
     performSearch();
 }
 window.searchWithQuery = searchWithQuery;
 
-}
+
 
 // =============================================================================
 // ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ
@@ -601,6 +617,12 @@ function createCardHtml(card, score, index) {
 
     // Поля ниже не дублируем: rule_statement / essence / practical_application / warning
     // уже выведены отдельными блоками выше.
+    const crossSectionsHtml = (card.content && card.content.extra_sections) ? (
+        Object.entries(card.content.extra_sections).map(([title, body]) =>
+            renderTextSection(title, body, '📎')
+        ).join('')
+    ) : '';
+
     const extraSectionsHtml = (card.content ? `
         ${renderTextSection('Тип', card.content.type, '🏷️')}
         ${renderTextSection('Вердикт', card.content.verdict, '🧾')}
@@ -665,6 +687,7 @@ function createCardHtml(card, score, index) {
                 ${benefitsHtml}
                 ${practicalApplicationHtml}
                 ${recommendationsHtml}
+                ${crossSectionsHtml}
                 ${extraSectionsHtml}
                 ${relatedTopicsHtml}
                 ${sourcesHtml}
@@ -811,18 +834,88 @@ function escapeHtml(text) {
 function processMarkdown(text) {
     if (!text) return '';
 
-    // Сначала экранируем HTML для безопасности
+    const parts = splitMarkdownBlocks(String(text));
+    return parts.map(part => {
+        if (part.type === 'table') {
+            return renderMarkdownTable(part.rows);
+        }
+        return processMarkdownInline(part.text);
+    }).join('');
+}
+
+function splitMarkdownBlocks(text) {
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
+    const parts = [];
+    let textBuffer = [];
+    let tableBuffer = [];
+
+    const flushText = () => {
+        if (textBuffer.length) {
+            parts.push({ type: 'text', text: textBuffer.join('\n') });
+            textBuffer = [];
+        }
+    };
+
+    const flushTable = () => {
+        if (!tableBuffer.length) return;
+        const rows = tableBuffer
+            .filter(line => line.trim())
+            .map(line => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|')
+                .map(cell => cell.trim()));
+        if (rows.length >= 2 && rows.some(r => r.some(c => c))) {
+            parts.push({ type: 'table', rows });
+        } else {
+            textBuffer.push(...tableBuffer);
+        }
+        tableBuffer = [];
+    };
+
+    const isTableLine = (line) => /^\s*\|.+\|\s*$/.test(line);
+
+    for (const line of lines) {
+        if (isTableLine(line)) {
+            flushText();
+            tableBuffer.push(line);
+        } else {
+            flushTable();
+            textBuffer.push(line);
+        }
+    }
+    flushTable();
+    flushText();
+    return parts.length ? parts : [{ type: 'text', text }];
+}
+
+function renderMarkdownTable(rows) {
+    if (!rows || rows.length < 2) return '';
+
+    const isSeparator = (row) => row.every(cell => /^:?-{3,}:?$/.test(cell));
+    let header = rows[0];
+    let body = rows.slice(1);
+    if (body.length && isSeparator(body[0])) {
+        body = body.slice(1);
+    } else if (isSeparator(header)) {
+        header = body[0] || header;
+        body = body.slice(1);
+    }
+
+    const thead = `<thead><tr>${header.map(h => `<th>${processMarkdownInline(h)}</th>`).join('')}</tr></thead>`;
+    const tbody = body.length
+        ? `<tbody>${body.map(row =>
+            `<tr>${row.map(cell => `<td>${processMarkdownInline(cell)}</td>`).join('')}</tr>`
+        ).join('')}</tbody>`
+        : '';
+
+    return '<div class="md-table-wrap"><table class="md-table">' + thead + tbody + '</table></div>';
+}
+
+function processMarkdownInline(text) {
+    if (!text) return '';
+
     let processed = escapeHtml(text);
-
-    // ✅ Жирный текст: **текст** → <strong>текст</strong>
     processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // ✅ Курсив: *текст* → <em>текст</em>
-    processed = processed.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // ✅ Переносы строк: \n → <br>
+    processed = processed.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
     processed = processed.replace(/\n/g, '<br>');
-
     return processed;
 }
 // =============================================================================

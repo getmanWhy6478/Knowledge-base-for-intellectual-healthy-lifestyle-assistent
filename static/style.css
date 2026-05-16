@@ -325,6 +325,42 @@ body {
     margin-bottom: 20px;
 }
 
+.md-table-wrap {
+    overflow-x: auto;
+    margin: 12px 0 16px;
+    border-radius: var(--radius-small);
+    border: 1px solid var(--border-color);
+}
+
+.md-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.md-table th,
+.md-table td {
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.md-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.md-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.md-table tbody tr:hover {
+    background: var(--primary-light);
+}
+
 .card-properties,
 .card-benefits,
 .card-recommendations,

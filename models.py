@@ -158,6 +158,11 @@ class KnowledgeContent(BaseModel):
     usage_context: Optional[str] = Field(None, description="Контекст использования термина")
     usage_examples: Optional[List[str]] = Field(None, description="Примеры употребления")
 
+    extra_sections: Optional[Dict[str, str]] = Field(
+        None,
+        description="Дополнительные разделы карточки (заголовок → Markdown-текст)",
+    )
+
 
 # =============================================================================
 # ОСНОВНАЯ МОДЕЛЬ: KnowledgeCard
