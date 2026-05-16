@@ -18,6 +18,7 @@ class Category(str, Enum):
     # Глоссарий и онтология
     GLOSSARY = "glossary"
     ONTOLOGY = "ontology"
+    AUDIENCE = "audience"
 
     # Питание
     PRODUCT = "product"

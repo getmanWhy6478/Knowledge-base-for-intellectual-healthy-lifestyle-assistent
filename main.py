@@ -164,6 +164,20 @@ CATEGORY_TITLES: Dict[str, str] = {
     "myth": "Мифы",
     "partially_true": "Частично верно",
     "rule": "Правила",
+    "condition": "Расстройтсва",
+    "habit": "Привычки",
+    "self_help": "Самопомощь",
+    "technique": "Техники",
+    "diet": "Диеты",
+    "nutrient": "Нутриенты",
+    "product": "Продукты",
+    "special_groups": "Для специальных групп",
+    "activity": "Занятия",
+    "exercise": "Упражнения",
+    "injury": "Травмы",
+    "program": "Программы",
+    "sports": "Виды спорта",
+    "profiles": "Профили аудитории"
 }
 
 
@@ -257,9 +271,5 @@ async def health_check():
         "cards_loaded": len(search_engine.cards) if search_engine else 0
     }
 
-
-# =============================================================================
-# Запуск
-# =============================================================================
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
