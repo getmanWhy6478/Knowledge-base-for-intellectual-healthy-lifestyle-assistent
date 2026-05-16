@@ -498,7 +498,7 @@ function createCardHtml(card, score, index) {
             <h4>📊 Ключевые свойства:</h4>
             <ul>
                 ${Object.entries(card.content.key_properties)
-                    .slice(0, 4)
+                    .slice(0, 10)
                     .map(([key, value]) => `<li><strong>${processMarkdown(key)}:</strong> ${processMarkdown(value)}</li>`)
                     .join('')}
             </ul>
@@ -510,7 +510,7 @@ function createCardHtml(card, score, index) {
         <div class="card-benefits">
             <h4>✅ Преимущества:</h4>
             <ul>
-                ${(card.content.benefits || []).slice(0, 3).map(b => `<li>${processMarkdown(b)}</li>`).join('')}
+                ${(card.content.benefits || []).slice(0, 10).map(b => `<li>${processMarkdown(b)}</li>`).join('')}
             </ul>
         </div>
     ` : '';
@@ -561,7 +561,7 @@ function createCardHtml(card, score, index) {
         <div class="card-sources">
             <h4>📚 Источники:</h4>
             <ol>
-                ${(card.sources || []).slice(0, 3).map(s => `<li>${processMarkdown(s)}</li>`).join('')}
+                ${(card.sources || []).slice(0, 6).map(s => `<li>${processMarkdown(s)}</li>`).join('')}
             </ol>
         </div>
     ` : '';

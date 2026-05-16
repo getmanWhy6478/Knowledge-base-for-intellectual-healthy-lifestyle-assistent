@@ -57,6 +57,7 @@ SECTION_MAP = {
     'формулировка правила': 'rule_statement',
     'связанные термины': 'related_topics',
     'связанные темы': 'related_topics',
+    'связанные правила и сущности': 'related_topics',
     'суть связи': 'description',
     'механизмы связи': 'context',
     'ограничения знаний': 'risks',
