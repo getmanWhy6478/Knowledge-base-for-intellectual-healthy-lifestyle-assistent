@@ -177,7 +177,7 @@ CATEGORY_TITLES: Dict[str, str] = {
     "injury": "Травмы",
     "program": "Программы",
     "sports": "Виды спорта",
-    "profiles": "Профили аудитории"
+    "audience": "Профили аудитории"
 }
 
 

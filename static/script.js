@@ -10,7 +10,7 @@ const API_BASE_URL = '';  // Пустая строка = тот же домен 
 const SEARCH_ENDPOINT = '/api/search';
 const MAX_RESULTS = 10;
 const BROWSE_DOMAINS_ENDPOINT = '/api/browse/domains';
-const RELEVANCE_THRESHOLD = 0.4;
+const RELEVANCE_THRESHOLD = 0.6;
 
 // =============================================================================
 // ЭЛЕМЕНТЫ DOM

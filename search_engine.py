@@ -1,23 +1,25 @@
 """
 Интеллектуальный поиск по базе знаний ЗОЖ.
-Использует векторные эмбеддинги и фильтрацию по метаданным.
+Использует векторные эмбеддинги + BM25 для гибридного поиска.
 """
-
 import numpy as np
 from typing import List, Optional, Dict
 from sentence_transformers import SentenceTransformer
-
+from rank_bm25 import BM25Okapi
 from models import (
     KnowledgeCard, SearchQuery, SearchResult,
     EvidenceLevel
 )
 from loader import load_knowledge_base
 from query_validator import QueryValidator, create_validator_from_cards
+import re
+
 
 class SearchEngine:
     """
-    Движок семантического поиска с поддержкой:
+    Движок гибридного поиска с поддержкой:
     - векторной схожести (cosine similarity)
+    - BM25 (keyword search)
     - фильтрации по домену, категории, аудитории, уровню доказательности
     - ранжирования по релевантности + доказательности
     """
@@ -25,62 +27,132 @@ class SearchEngine:
     def __init__(
         self,
         kb_path: str = "knowledge_base",
-        model_name: str = 'paraphrase-multilingual-MiniLM-L12-v2',
+        model_name: str = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
         load_on_init: bool = True
     ):
+        """
+        Инициализация поискового движка.
+
+        Args:
+            kb_path: Путь к базе знаний
+            model_name: Модель для эмбеддингов
+            load_on_init: Загружать ли базу при инициализации
+        """
+        print(f"🔄 Инициализация SearchEngine...")
+        print(f"   Модель: {model_name}")
         self.model = SentenceTransformer(model_name)
         self.cards: List[KnowledgeCard] = []
         self.embeddings: Optional[np.ndarray] = None
-        self.validator = None
+
+        # BM25 для keyword search
+        self.bm25: Optional[BM25Okapi] = None
+        self.tokenized_corpus: List[List[str]] = []
+
+        self.validator: Optional[QueryValidator] = None
 
         if load_on_init:
             self.load_knowledge_base(kb_path)
 
     def load_knowledge_base(self, directory: str):
         """Загружает и индексирует карточки из директории"""
-        print(f"🔄 Загрузка базы знаний из {directory}...")
+        print(f"\n🔄 Загрузка базы знаний из {directory}...")
 
         self.cards = load_knowledge_base(directory)
-        self.validator = create_validator_from_cards(self.cards)
+
         if not self.cards:
             print("⚠️ База знаний пуста!")
             return
 
-        # Генерируем эмбеддинги для поиска
+        # Создаём валидатор
+        self.validator = create_validator_from_cards(self.cards)
+
+        # Генерируем тексты для поиска
         search_texts = [card.get_search_text() for card in self.cards]
 
-        self.embeddings = self.model.encode(search_texts, show_progress_bar=True)
+        # 1. Семантические эмбеддинги
+        print("🧠 Генерация семантических эмбеддингов...")
+        self.embeddings = self.model.encode(
+            search_texts,
+            show_progress_bar=True,
+            normalize_embeddings=True  # Важно для cosine similarity
+        )
 
-        print(f"✅ Индексировано {len(self.cards)} карточек. Векторы: {self.embeddings.shape}")
+        # 2. BM25 индекс для keyword search
+        print("📊 Построение BM25 индекса...")
+        self.tokenized_corpus = [self._tokenize(text) for text in search_texts]
+        self.bm25 = BM25Okapi(self.tokenized_corpus)
 
-    def search(self, query: SearchQuery, min_score: float = 0.3) -> List[SearchResult]:
+        print(f"\n✅ Индексировано {len(self.cards)} карточек.")
+        print(f"   Векторы: {self.embeddings.shape}")
+        print(f"   BM25: {len(self.tokenized_corpus)} документов")
+        print(f"   Среднее кол-во токенов: {np.mean([len(t) for t in self.tokenized_corpus]):.1f}\n")
+
+    def _tokenize(self, text: str) -> List[str]:
         """
-        Выполняет поиск с учётом фильтров из запроса.
-        Возвращает отсортированные результаты с оценкой релевантности.
+        Токенизация текста для BM25.
+        Поддерживает кириллицу, латиницу, цифры.
         """
-        if not self.cards or self.embeddings is None:
+        # Приводим к нижнему регистру
+        text = text.lower()
+        # Извлекаем слова (кириллица + латиница + цифры)
+        tokens = re.findall(r'[а-яёa-z0-9]+', text)
+        return tokens
+
+    def search(self, query: SearchQuery, min_score: float = 0.6) -> List[SearchResult]:
+        """
+        Выполняет гибридный поиск с учётом фильтров из запроса.
+
+        Args:
+            query: Объект запроса с фильтрами
+            min_score: Минимальный порог релевантности
+
+        Returns:
+            Список результатов поиска
+        """
+        if not self.cards or self.embeddings is None or self.bm25 is None:
+            print("⚠️ Поиск невозможен: база не загружена")
             return []
+
+        # Валидация запроса
         if self.validator:
             is_valid, error_msg, suggestions = self.validator.validate(query.query)
             if not is_valid and error_msg:
-                # Возвращаем пустой результат с подсказками
-                return []  # Или можно кастомизировать ответ
-        # 1. Векторизуем запрос
+                print(f"⚠️ Запрос не прошёл валидацию: {error_msg}")
+                return []
+
+        # 1. Векторизуем запрос (семантика)
         normalized_query = (query.query or "").strip().lower()
         query_embedding = self.model.encode([normalized_query])[0]
 
-        # 2. Вычисляем косинусное сходство
-        similarities = self._cosine_similarity(query_embedding, self.embeddings)
+        # 2. Косинусное сходство (семантический поиск)
+        semantic_scores = self._cosine_similarity(query_embedding, self.embeddings)
 
-        # 3. Применяем фильтры из запроса
+        # 3. BM25 scores (keyword поиск)
+        query_tokens = self._tokenize(normalized_query)
+        bm25_scores = self.bm25.get_scores(query_tokens)
+
+        # 4. Нормализация скоров (приводим к диапазону 0-1)
+        semantic_scores_norm = self._normalize_scores(semantic_scores)
+        bm25_scores_norm = self._normalize_scores(bm25_scores)
+
+        # 5. ГИБРИДНОЕ СКОРИРОВАНИЕ
+        # 70% семантика + 30% keywords (можно настроить)
+        ALPHA = 0.7  # Вес семантики
+        hybrid_scores = ALPHA * semantic_scores_norm + (1 - ALPHA) * bm25_scores_norm
+
+        print(f"🔍 Поиск: '{query.query}'")
+        print(f"   Поисковые скоры: семантика={semantic_scores_norm.max():.3f}, "
+              f"BM25={bm25_scores_norm.max():.3f}, гибрид={hybrid_scores.max():.3f}")
+
+        # 6. Применяем фильтры из запроса
         valid_indices = []
         for idx, card in enumerate(self.cards):
             if not self._matches_filters(card, query):
                 continue
-            if similarities[idx] >= min_score:
-                valid_indices.append((idx, similarities[idx]))
+            if hybrid_scores[idx] >= min_score:
+                valid_indices.append((idx, hybrid_scores[idx]))
 
-        # 4. Сортируем: сначала по релевантности, потом по уровню доказательности
+        # 7. Сортировка: по релевантности + уровень доказательности
         evidence_weights = {
             EvidenceLevel.HIGH: 3,
             EvidenceLevel.MODERATE: 2,
@@ -89,11 +161,14 @@ class SearchEngine:
         }
 
         valid_indices.sort(
-            key=lambda x: (x[1], evidence_weights.get(self.cards[x[0]].evidence_level, 0)),
+            key=lambda x: (
+                x[1],  # Релевантность
+                evidence_weights.get(self.cards[x[0]].evidence_level, 0)  # Доказательность
+            ),
             reverse=True
         )
 
-        # 5. Формируем результаты
+        # 8. Формируем результаты
         results = []
         for idx, score in valid_indices[:query.top_k]:
             card = self.cards[idx]
@@ -105,28 +180,55 @@ class SearchEngine:
                 match_highlights=highlights if highlights else None
             ))
 
+        print(f"✅ Найдено {len(results)} результатов")
         return results
 
     def _cosine_similarity(self, query_vec: np.ndarray, doc_vecs: np.ndarray) -> np.ndarray:
         """Вычисляет косинусное сходство между вектором запроса и документами"""
         query_norm = np.linalg.norm(query_vec)
         doc_norms = np.linalg.norm(doc_vecs, axis=1)
+
+        # Защита от деления на ноль
         doc_norms = np.where(doc_norms == 0, 1e-10, doc_norms)
 
         similarities = np.dot(doc_vecs, query_vec) / (doc_norms * query_norm)
         return np.clip(similarities, 0, 1)
+
+    def _normalize_scores(self, scores: np.ndarray) -> np.ndarray:
+        """
+        Нормализация скоров к диапазону 0-1.
+        Использует min-max нормализацию.
+        """
+        min_score = scores.min()
+        max_score = scores.max()
+
+        if max_score - min_score < 1e-10:
+            return np.zeros_like(scores)
+
+        normalized = (scores - min_score) / (max_score - min_score)
+        return np.clip(normalized, 0, 1)
 
     def _matches_filters(self, card: KnowledgeCard, query: SearchQuery) -> bool:
         """Проверяет, удовлетворяет ли карточка фильтрам запроса"""
         def _val(x):
             return getattr(x, "value", x)
 
+        # Фильтр по домену
         if query.domain_filter and _val(card.domain) not in {_val(d) for d in query.domain_filter}:
             return False
+
+        # Фильтр по категории
         if query.category_filter and _val(card.category) not in {_val(c) for c in query.category_filter}:
             return False
-        if query.audience_filter and not {_val(a) for a in card.audience}.intersection({_val(a) for a in query.audience_filter}):
-            return False
+
+        # Фильтр по аудитории
+        if query.audience_filter:
+            card_audiences = {_val(a) for a in card.audience}
+            query_audiences = {_val(a) for a in query.audience_filter}
+            if not card_audiences.intersection(query_audiences):
+                return False
+
+        # Фильтр по уровню доказательности
         if query.min_evidence:
             evidence_order = [
                 EvidenceLevel.HIGH,
@@ -135,13 +237,17 @@ class SearchEngine:
                 EvidenceLevel.EXPERT_OPINION,
             ]
             evidence_order_vals = [_val(e) for e in evidence_order]
-            if evidence_order_vals.index(_val(card.evidence_level)) > evidence_order_vals.index(_val(query.min_evidence)):
+
+            card_level_idx = evidence_order_vals.index(_val(card.evidence_level))
+            query_level_idx = evidence_order_vals.index(_val(query.min_evidence))
+
+            if card_level_idx > query_level_idx:
                 return False
+
         return True
 
     def _extract_highlights(self, card: KnowledgeCard, query: str) -> Optional[Dict[str, List[str]]]:
         """Находит фрагменты текста карточки, содержащие слова из запроса"""
-        import re
         query_words = set(re.findall(r'[а-яa-z]{3,}', query.lower(), re.I))
         if not query_words:
             return None
@@ -158,15 +264,22 @@ class SearchEngine:
         for field_name, text in fields_to_check:
             if not text:
                 continue
+
             sentences = re.split(r'[.!?]+', text)
             matches = []
+
             for sent in sentences:
                 sent_stripped = sent.strip()
                 if len(sent_stripped) < 10:
                     continue
+
                 sent_lower = sent_stripped.lower()
                 if any(word in sent_lower for word in query_words):
-                    matches.append(sent_stripped[:200] + "..." if len(sent_stripped) > 200 else sent_stripped)
+                    # Обрезаем до 200 символов
+                    matches.append(
+                        sent_stripped[:200] + "..." if len(sent_stripped) > 200 else sent_stripped
+                    )
+
             if matches:
                 highlights[field_name] = matches[:3]
 

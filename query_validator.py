@@ -5,13 +5,14 @@
 
 import re
 from typing import List, Tuple, Optional
-
+from pymorphy3 import MorphAnalyzer
+from difflib import SequenceMatcher
 # =============================================================================
 # КОНФИГУРАЦИЯ
 # =============================================================================
 
 # Минимальная длина запроса
-MIN_QUERY_LENGTH = 2
+MIN_QUERY_LENGTH = 3
 
 # Максимальная длина (защита от спама)
 MAX_QUERY_LENGTH = 500
@@ -24,7 +25,9 @@ STOP_WORDS = {
     'а', 'о', 'и', 'у', 'э', 'ы', 'я', 'е', 'ё', 'ю',
     'ну', 'да', 'нет', 'ок', 'хм', 'мм', 'ээ',
     'привет', 'здравствуйте', 'пока', 'спасибо', 'пожалуйста',
-    'тест', 'тестирование', 'проверка', '123', '...', '---'
+    'тест', 'тестирование', 'проверка', '123', '...', '---', 'мне',
+    'ей', ' ему', 'почему', 'зачем', 'как', 'можно', 'нужно', 'надо',
+    'хочу', 'хочется',
 }
 
 # Ключевые слова домена ЗОЖ (для быстрой фильтрации)
@@ -50,7 +53,7 @@ HEALTH_KEYWORDS = {
 }
 
 # Порог семантической релевантности (0.0 - 1.0)
-SEMANTIC_THRESHOLD = 0.25
+SEMANTIC_THRESHOLD = 0.4
 
 
 # =============================================================================
@@ -72,6 +75,12 @@ class QueryValidator:
                          (для семантической проверки)
         """
         self.known_topics = known_topics or []
+        self.morph = MorphAnalyzer()
+        print(self.known_topics)
+
+    def _lemmatize(self, word: str) -> str:
+        """Приводит слово к начальной форме: 'бежал' → 'бежать'"""
+        return self.morph.parse(word)[0].normal_form
 
     def validate(self, query: str) -> Tuple[bool, Optional[str], List[str]]:
         """
@@ -85,17 +94,42 @@ class QueryValidator:
         if not is_valid:
             return False, message, suggestions
 
+        is_valid, message, suggestions = self._check_typos(query)
+        if not is_valid:
+            return False, message, suggestions
+
         # Уровень 2: Лексическая проверка
         is_valid, message, suggestions = self._check_lexical(query)
         if not is_valid:
             return False, message, suggestions
 
-        # Уровень 3: Семантическая проверка (если есть эмбеддинги)
-        # is_valid, message, suggestions = self._check_semantic(query)
-        # if not is_valid:
-        #     return False, message, suggestions
-
         # Все проверки пройдены
+        return True, None, []
+
+    def _check_typos(self, query: str) -> Tuple[bool, Optional[str], List[str]]:
+        """
+        Проверяет запрос на наличие опечаток.
+        Использует расстояние Левенштейна для сравнения с известными темами.
+        """
+        if not self.known_topics:
+            return True, None, []
+
+        query_lower = query.lower().strip().split()
+
+        best_match = None
+        best_ratio = 0
+
+        for topic in self.known_topics:
+            for word in query_lower:
+                ratio = SequenceMatcher(None, word, topic.lower()).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_match = topic
+            print(best_ratio, query_lower, best_match)
+        # Если есть близкое совпадение (50-80%) — вероятно опечатка
+        if 0.25 < best_ratio < 0.7:
+            return False, f"Возможно, такого слова не существует в русском языке", [best_match]
+
         return True, None, []
 
     def _check_basic(self, query: str) -> Tuple[bool, Optional[str], List[str]]:
@@ -133,7 +167,7 @@ class QueryValidator:
     def _check_lexical(self, query: str) -> Tuple[bool, Optional[str], List[str]]:
         """Лексическая проверка: наличие слов из домена ЗОЖ"""
         query_lower = query.lower()
-        words = re.findall(r'[а-яёa-z]{3,}', query_lower)  # Слова от 3 букв
+        words = [self._lemmatize(w) for w in re.findall(r'[а-яёa-z]{3,}', query_lower)]
 
         if not words:
             return False, "Запрос не содержит осмысленных слов", [
@@ -150,37 +184,6 @@ class QueryValidator:
             # Не блокируем, но предупреждаем
             suggestions = self._get_topic_suggestions(query_lower)
             return True, None, suggestions  # Мягкое предупреждение
-
-        return True, None, []
-
-    def _check_semantic(self, query: str, model) -> Tuple[bool, Optional[str], List[str]]:
-        """
-        Семантическая проверка: близость к известным темам.
-
-        Args:
-            model: sentence-transformers модель для эмбеддингов
-        """
-        if not self.known_topics or not model:
-            return True, None, []  # Пропускаем, если нет данных
-
-        import numpy as np
-
-        # Эмбеддинг запроса
-        query_embedding = model.encode([query])[0]
-
-        # Эмбеддинги известных тем
-        topic_embeddings = model.encode(self.known_topics)
-
-        # Косинусное сходство
-        similarities = np.dot(topic_embeddings, query_embedding) / (
-                np.linalg.norm(topic_embeddings, axis=1) * np.linalg.norm(query_embedding)
-        )
-
-        max_similarity = np.max(similarities)
-
-        if max_similarity < SEMANTIC_THRESHOLD:
-            suggestions = self._get_closest_topics(query, self.known_topics, model, top_k=3)
-            return False, f"Запрос не соответствует темам базы знаний", suggestions
 
         return True, None, []
 
@@ -244,10 +247,11 @@ def create_validator_from_cards(cards) -> QueryValidator:
 
     for card in cards:
         # Теги
-        known_topics.update(card.tags)
+        for i in card.tags:
+            known_topics.update(i.split())
         # Заголовок и тема
-        known_topics.add(card.title.lower())
+        known_topics.update(card.title.lower().split())
         if hasattr(card, 'content') and card.content.definition:
-            known_topics.add(card.content.definition[:100].lower())
+            known_topics.update(card.content.definition[:100].lower().split())
 
     return QueryValidator(known_topics=list(known_topics))
