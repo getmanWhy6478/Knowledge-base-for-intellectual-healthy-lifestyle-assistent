@@ -1,20 +1,9 @@
-/**
- * Health Lifestyle Assistant - Frontend Script
- * Обработка запросов к API и отображение результатов
- */
-
-// =============================================================================
-// КОНФИГУРАЦИЯ
-// =============================================================================
 const API_BASE_URL = '';  // Пустая строка = тот же домен (localhost:8000)
 const SEARCH_ENDPOINT = '/api/search';
 const MAX_RESULTS = 10;
 const BROWSE_DOMAINS_ENDPOINT = '/api/browse/domains';
-const RELEVANCE_THRESHOLD = 0.6;
+const RELEVANCE_THRESHOLD = 0.72;
 
-// =============================================================================
-// ЭЛЕМЕНТЫ DOM
-// =============================================================================
 const searchInput = document.getElementById('queryInput');
 const searchButton = document.getElementById('searchButton');
 const resultsArea = document.getElementById('resultsArea');
@@ -30,9 +19,6 @@ const cardDetail = document.getElementById('cardDetail');
 const browseCount = document.getElementById('browseCount');
 const cardMeta = document.getElementById('cardMeta');
 
-// =============================================================================
-// ИНИЦИАЛИЗАЦИЯ
-// =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     // Привязка обработчиков событий
     if (searchButton) {
@@ -61,9 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Health Assistant frontend initialized');
 });
 
-// =============================================================================
-// РЕЖИМЫ: ПОИСК / ОБЗОР БАЗЫ
-// =============================================================================
 let currentMode = 'search';
 let currentBrowse = { domain: '', category: '' };
 let forceShow = false;
@@ -72,22 +55,18 @@ function setMode(mode) {
     if (mode !== 'search' && mode !== 'browse') return;
     currentMode = mode;
 
-    // Табики
     if (tabSearch) tabSearch.classList.toggle('active', mode === 'search');
     if (tabBrowse) tabBrowse.classList.toggle('active', mode === 'browse');
 
-    // Панели
     if (browsePanel) browsePanel.style.display = mode === 'browse' ? 'block' : 'none';
     if (resultsArea) resultsArea.style.display = mode === 'browse' ? 'none' : 'block';
 
-    // Очистка
     clearResults();
     if (mode === 'browse') {
         initBrowseIfNeeded();
     }
 }
 
-// Делаем доступным для inline onclick в HTML
 window.setMode = setMode;
 
 let browseInitialized = false;
@@ -97,9 +76,6 @@ async function initBrowseIfNeeded() {
     await loadDomains();
 }
 
-// =============================================================================
-// ОБЗОР БАЗЫ: ДОМЕНЫ → КАТЕГОРИИ → КАРТОЧКИ → ПРОСМОТР
-// =============================================================================
 async function loadDomains() {
     try {
         showLoader(true);
@@ -113,7 +89,6 @@ async function loadDomains() {
             `<option value="${escapeHtml(d.id)}">${escapeHtml(d.title || d.id)} (${d.count})</option>`
         ).join('');
 
-        // Сброс зависимых селектов/панелей
         resetBrowseSelections({ keepDomain: false });
     } catch (e) {
         showError(`Не удалось загрузить структуру базы: ${e.message}`);
@@ -237,7 +212,6 @@ async function openCardById(cardId) {
     if (!cardId) return;
     try {
         showLoader(true);
-        // подсветка выбранного элемента
         document.querySelectorAll('.card-item').forEach(el => {
             el.classList.toggle('active', el.dataset && el.dataset.cardId === cardId);
         });
@@ -248,7 +222,6 @@ async function openCardById(cardId) {
         const card = data.card;
         if (!card) throw new Error('Пустой ответ');
 
-        // рендер детальной карточки (используем существующий шаблон для совместимости)
         if (cardMeta) {
             const parts = [
                 card.domain ? `domain: ${card.domain}` : '',
@@ -268,14 +241,9 @@ async function openCardById(cardId) {
     }
 }
 
-// Доступно из inline onclick списка карточек
 window.openCardById = openCardById;
 
-// =============================================================================
-// ОСНОВНАЯ ФУНКЦИЯ ПОИСКА
-// =============================================================================
 async function performSearch(force = false) {
-    // ✅ СБРОС ФЛАГА (если не принудительный вызов)
     if (!force) {
         forceShow = false;
     }
@@ -325,9 +293,7 @@ async function performSearch(force = false) {
         showLoader(false);
     }
 }
-// =============================================================================
-// ОБРАБОТКА ОТВЕТА API
-// =============================================================================
+
 function handleApiResponse(data) {
     const results = data.data || data.results || [];
     const warning = data.warning;
@@ -351,7 +317,7 @@ function handleApiResponse(data) {
         return;
     }
 
-    // ✅ 4. ПРОВЕРКА РЕЛЕВАНТНОСТИ (только если forceShow = false)
+    // 4. ПРОВЕРКА РЕЛЕВАНТНОСТИ
     if (!forceShow) {
         const maxScore = Math.max(...results.map(r => r.score || 0));
         console.log('📊 Максимальная релевантность:', maxScore.toFixed(3));
@@ -399,16 +365,11 @@ function showLowRelevance(resultsCount) {
     `;
 }
 
-// =============================================================================
-// ПРИНУДИТЕЛЬНЫЙ ПОКАЗ РЕЗУЛЬТАТОВ
-// =============================================================================
 function forceShowResults() {
     console.log('🔘 Кнопка "Всё равно показать" нажата');
 
-    // ✅ Устанавливаем флаг
     forceShow = true;
 
-    // ✅ Повторяем поиск с тем же запросом
     performSearch(true);
 }
 
@@ -439,11 +400,6 @@ function searchWithQuery(newQuery) {
 }
 window.searchWithQuery = searchWithQuery;
 
-
-
-// =============================================================================
-// ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ
-// =============================================================================
 function displayResults(results, message) {
     if (!resultsArea) return;
 
@@ -456,7 +412,6 @@ function displayResults(results, message) {
 
     // Карточки результатов
     const cardsHtml = results.map((item, index) => {
-        // 🔍 Поддержка разных структур ответа
         const card = item.card || item;
         const score = item.score || null;
 
@@ -466,13 +421,9 @@ function displayResults(results, message) {
     resultsArea.innerHTML = headerHtml + cardsHtml;
 }
 
-// =============================================================================
-// HTML ШАБЛОН КАРТОЧКИ
-// =============================================================================
 function createCardHtml(card, score, index) {
     if (!card) return '';
 
-    // Безопасное экранирование HTML
     const escapeHtml = (text) => {
         if (!text) return '';
         const div = document.createElement('div');
@@ -480,19 +431,16 @@ function createCardHtml(card, score, index) {
         return div.innerHTML;
     };
 
-    // Теги
     const tagsHtml = (card.tags || []).map(tag =>
         `<span class="tag">${escapeHtml(tag)}</span>`
     ).join('');
 
-    // Оценка релевантности (для отладки)
     const scoreHtml = score ? `
         <div class="relevance-score">
             🔍 Релевантность: ${(score * 100).toFixed(0)}%
         </div>
     ` : '';
 
-    // Ключевые свойства (если есть)
     const propertiesHtml = card.content && card.content.key_properties ? `
         <div class="card-properties">
             <h4>📊 Ключевые свойства:</h4>
@@ -505,7 +453,6 @@ function createCardHtml(card, score, index) {
         </div>
     ` : '';
 
-    // Преимущества
     const benefitsHtml = card.content && card.content.benefits ? `
         <div class="card-benefits">
             <h4>✅ Преимущества:</h4>
@@ -514,7 +461,7 @@ function createCardHtml(card, score, index) {
             </ul>
         </div>
     ` : '';
-    // Формулировка правила (для правил/фактов)
+
     const ruleStatementHtml = card.content && card.content.rule_statement ? `
         <div class="card-section">
             <h4>📜 Формулировка правила:</h4>
@@ -522,7 +469,6 @@ function createCardHtml(card, score, index) {
         </div>
     ` : '';
 
-    // Суть рекомендации (для правил/фактов)
     const essenceHtml = card.content && card.content.essence ? `
         <div class="card-section">
             <h4>💡 Суть рекомендации:</h4>
@@ -530,7 +476,6 @@ function createCardHtml(card, score, index) {
         </div>
     ` : '';
 
-    // Практическое применение (для правил/фактов)
     const practicalApplicationHtml = card.content && card.content.practical_application ? `
         <div class="card-section">
             <h4>🔧 Практическое применение:</h4>
@@ -538,7 +483,6 @@ function createCardHtml(card, score, index) {
         </div>
     ` : '';
 
-    // Важное предупреждение (универсальное)
     const specialwarningHtml = card.content && card.content.warning ? `
         <div class="card-warning" style="margin: 20px 0; padding: 15px 20px; background: var(--warning-light); border-radius: var(--radius-small); border-left: 4px solid var(--warning-color);">
             <strong>⚠️ Важное предупреждение:</strong>
@@ -546,7 +490,6 @@ function createCardHtml(card, score, index) {
         </div>
     ` : '';
 
-    // Рекомендации
         const recommendationsHtml = card.content && card.content.recommendations ? `
             <div class="card-recommendations">
                 <h4>💡 Рекомендации:</h4>
@@ -556,7 +499,6 @@ function createCardHtml(card, score, index) {
             </div>
         ` : '';
 
-    // Источники
     const sourcesHtml = card.sources ? `
         <div class="card-sources">
             <h4>📚 Источники:</h4>
@@ -590,7 +532,6 @@ function createCardHtml(card, score, index) {
     </div>
 ` : '';
 
-    // Универсальный рендер секций, которые раньше не выводились
     const renderTextSection = (title, text, icon) => {
         const value = (text || '').trim();
         if (!value) return '';
@@ -615,8 +556,6 @@ function createCardHtml(card, score, index) {
         `;
     };
 
-    // Поля ниже не дублируем: rule_statement / essence / practical_application / warning
-    // уже выведены отдельными блоками выше.
     const crossSectionsHtml = (card.content && card.content.extra_sections) ? (
         Object.entries(card.content.extra_sections).map(([title, body]) =>
             renderTextSection(title, body, '📎')
@@ -703,9 +642,6 @@ function createCardHtml(card, score, index) {
     `;
 }
 
-// =============================================================================
-// ПРЕДУПРЕЖДЕНИЯ БЕЗОПАСНОСТИ
-// =============================================================================
 function showSafetyWarning(warning) {
     if (!resultsArea) return;
 
@@ -735,9 +671,6 @@ function getActionText(action) {
     return actions[action] || '';
 }
 
-// =============================================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// =============================================================================
 function showLoader(show) {
     if (loader) {
         loader.style.display = show ? 'block' : 'none';
@@ -823,7 +756,6 @@ function showDisclaimer(customText) {
     `;
 }
 
-// Безопасное экранирование HTML (глобальная функция)
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -918,11 +850,7 @@ function processMarkdownInline(text) {
     processed = processed.replace(/\n/g, '<br>');
     return processed;
 }
-// =============================================================================
-// ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ (для будущего расширения)
-// =============================================================================
 
-// Поиск по категории
 async function searchByCategory(category, top_k = 5) {
     const response = await fetch(`${API_BASE_URL}${SEARCH_ENDPOINT}`, {
         method: 'POST',
@@ -936,14 +864,12 @@ async function searchByCategory(category, top_k = 5) {
     return await response.json();
 }
 
-// Получение карточки по ID
 async function getCardById(cardId) {
     const response = await fetch(`${API_BASE_URL}/api/card/${cardId}`);
     if (!response.ok) throw new Error('Card not found');
     return await response.json();
 }
 
-// Экспорт результатов в консоль (для отладки)
 function exportResultsToConsole() {
     console.log('📊 Экспорт результатов поиска:');
     const cards = document.querySelectorAll('.knowledge-card');
@@ -953,7 +879,6 @@ function exportResultsToConsole() {
     });
 }
 
-// Горячие клавиши
 document.addEventListener('keydown', (e) => {
     // Ctrl+K или Cmd+K — фокус на поиск
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -961,7 +886,6 @@ document.addEventListener('keydown', (e) => {
         if (searchInput) searchInput.focus();
     }
 
-    // Escape — очистка поиска
     if (e.key === 'Escape') {
         if (searchInput) searchInput.blur();
         clearResults();

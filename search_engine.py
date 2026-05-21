@@ -16,13 +16,6 @@ import re
 
 
 class SearchEngine:
-    """
-    Движок гибридного поиска с поддержкой:
-    - векторной схожести (cosine similarity)
-    - BM25 (keyword search)
-    - фильтрации по домену, категории, аудитории, уровню доказательности
-    - ранжирования по релевантности + доказательности
-    """
 
     def __init__(
         self,
@@ -30,21 +23,11 @@ class SearchEngine:
         model_name: str = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
         load_on_init: bool = True
     ):
-        """
-        Инициализация поискового движка.
 
-        Args:
-            kb_path: Путь к базе знаний
-            model_name: Модель для эмбеддингов
-            load_on_init: Загружать ли базу при инициализации
-        """
-        print(f"🔄 Инициализация SearchEngine...")
-        print(f"   Модель: {model_name}")
         self.model = SentenceTransformer(model_name)
         self.cards: List[KnowledgeCard] = []
         self.embeddings: Optional[np.ndarray] = None
 
-        # BM25 для keyword search
         self.bm25: Optional[BM25Okapi] = None
         self.tokenized_corpus: List[List[str]] = []
 
@@ -54,7 +37,6 @@ class SearchEngine:
             self.load_knowledge_base(kb_path)
 
     def load_knowledge_base(self, directory: str):
-        """Загружает и индексирует карточки из директории"""
         print(f"\n🔄 Загрузка базы знаний из {directory}...")
 
         self.cards = load_knowledge_base(directory)
@@ -63,52 +45,36 @@ class SearchEngine:
             print("⚠️ База знаний пуста!")
             return
 
-        # Создаём валидатор
         self.validator = create_validator_from_cards(self.cards)
 
-        # Генерируем тексты для поиска
         search_texts = [card.get_search_text() for card in self.cards]
 
         # 1. Семантические эмбеддинги
-        print("🧠 Генерация семантических эмбеддингов...")
+        print("Генерация семантических эмбеддингов...")
         self.embeddings = self.model.encode(
             search_texts,
             show_progress_bar=True,
-            normalize_embeddings=True  # Важно для cosine similarity
+            normalize_embeddings=True
         )
 
         # 2. BM25 индекс для keyword search
-        print("📊 Построение BM25 индекса...")
+        print("Построение BM25 индекса...")
         self.tokenized_corpus = [self._tokenize(text) for text in search_texts]
         self.bm25 = BM25Okapi(self.tokenized_corpus)
 
-        print(f"\n✅ Индексировано {len(self.cards)} карточек.")
+        print(f"\nИндексировано {len(self.cards)} карточек.")
         print(f"   Векторы: {self.embeddings.shape}")
         print(f"   BM25: {len(self.tokenized_corpus)} документов")
         print(f"   Среднее кол-во токенов: {np.mean([len(t) for t in self.tokenized_corpus]):.1f}\n")
 
     def _tokenize(self, text: str) -> List[str]:
-        """
-        Токенизация текста для BM25.
-        Поддерживает кириллицу, латиницу, цифры.
-        """
-        # Приводим к нижнему регистру
+
         text = text.lower()
-        # Извлекаем слова (кириллица + латиница + цифры)
         tokens = re.findall(r'[а-яёa-z0-9]+', text)
         return tokens
 
-    def search(self, query: SearchQuery, min_score: float = 0.6) -> List[SearchResult]:
-        """
-        Выполняет гибридный поиск с учётом фильтров из запроса.
+    def search(self, query: SearchQuery, min_score: float = 0.72) -> List[SearchResult]:
 
-        Args:
-            query: Объект запроса с фильтрами
-            min_score: Минимальный порог релевантности
-
-        Returns:
-            Список результатов поиска
-        """
         if not self.cards or self.embeddings is None or self.bm25 is None:
             print("⚠️ Поиск невозможен: база не загружена")
             return []
@@ -139,10 +105,6 @@ class SearchEngine:
         # 70% семантика + 30% keywords (можно настроить)
         ALPHA = 0.7  # Вес семантики
         hybrid_scores = ALPHA * semantic_scores_norm + (1 - ALPHA) * bm25_scores_norm
-
-        print(f"🔍 Поиск: '{query.query}'")
-        print(f"   Поисковые скоры: семантика={semantic_scores_norm.max():.3f}, "
-              f"BM25={bm25_scores_norm.max():.3f}, гибрид={hybrid_scores.max():.3f}")
 
         # 6. Применяем фильтры из запроса
         valid_indices = []
@@ -180,7 +142,6 @@ class SearchEngine:
                 match_highlights=highlights if highlights else None
             ))
 
-        print(f"✅ Найдено {len(results)} результатов")
         return results
 
     def _cosine_similarity(self, query_vec: np.ndarray, doc_vecs: np.ndarray) -> np.ndarray:
@@ -195,10 +156,7 @@ class SearchEngine:
         return np.clip(similarities, 0, 1)
 
     def _normalize_scores(self, scores: np.ndarray) -> np.ndarray:
-        """
-        Нормализация скоров к диапазону 0-1.
-        Использует min-max нормализацию.
-        """
+
         min_score = scores.min()
         max_score = scores.max()
 

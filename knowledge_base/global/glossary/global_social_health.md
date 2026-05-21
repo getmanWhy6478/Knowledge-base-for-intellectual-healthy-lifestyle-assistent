@@ -4,12 +4,12 @@ title: "Социальное здоровье"
 domain: "global"
 category: "glossary"
 tags:
-- социальное_здоровье
-- отношения
-- сообщество
-- general
-- информирование
-- core
+  - социальное_здоровье
+  - отношения
+  - сообщество
+  - general
+  - информирование
+  - core
 related:
   - "GLB-GLOSS-001"
   - "GLB-GLOSS-002"

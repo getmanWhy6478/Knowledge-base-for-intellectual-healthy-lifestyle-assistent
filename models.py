@@ -5,7 +5,7 @@ from enum import Enum
 import re
 
 
-class Domain(str, Enum):  # ✅ Наследуемся от str И Enum
+class Domain(str, Enum):
     """Предметные области (Уровень 1 + глобальная)"""
     NUTRITION = "nutrition"
     SPORT = "sport"
@@ -50,7 +50,6 @@ class Category(str, Enum):
 
 
 class EvidenceLevel(str, Enum):
-    """Уровни доказательности"""
     HIGH = "high"
     MODERATE = "moderate"
     LOW = "low"
@@ -85,7 +84,7 @@ class Audience(str, Enum):
 
 
 
-class RelationType(str, Enum):  # ✅ Это исправляет ошибку!
+class RelationType(str, Enum):
     """Типы связей между документами"""
     IS_PART_OF = "is_part_of"
     RELATES_TO = "relates_to"
@@ -97,12 +96,6 @@ class RelationType(str, Enum):  # ✅ Это исправляет ошибку!
     REQUIRES = "requires"
     SYNERGY_WITH = "synergy_with"
     RISK_WITH = "risk_with"
-
-
-
-# =============================================================================
-# ВСПОМОГАТЕЛЬНЫЕ МОДЕЛИ
-# =============================================================================
 
 class RelatedDocument(BaseModel):
     """Связанный документ с указанием типа связи"""
@@ -164,19 +157,11 @@ class KnowledgeContent(BaseModel):
         description="Дополнительные разделы карточки (заголовок → Markdown-текст)",
     )
 
-
-# =============================================================================
-# ОСНОВНАЯ МОДЕЛЬ: KnowledgeCard
-# =============================================================================
-
 class KnowledgeCard(BaseModel):
-    """
-    Единица знаний базы ЗОЖ.
-    Соответствует шаблону из ТЗ: YAML-фронтматтер + Markdown-содержимое.
-    """
+
     model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
-    # --- Метаданные (YAML frontmatter) ---
+    # Метаданные (YAML frontmatter)
 
     id: str = Field(
         ...,
@@ -213,7 +198,7 @@ class KnowledgeCard(BaseModel):
     )
 
     sources: List[str] = Field(
-        ...,  # Обязательно
+        ...,
         description="Список источников (ссылки или библиографические описания)",
         min_length=1  # ✅ Pydantic v2
     )
@@ -228,17 +213,11 @@ class KnowledgeCard(BaseModel):
 
     status: DocumentStatus = Field(default=DocumentStatus.DRAFT, description="Статус документа")
 
-    # --- Содержимое (Markdown body) ---
-
     content: KnowledgeContent = Field(..., description="Основное содержимое карточки")
-
-    # --- Дополнительные поля для приложения ---
 
     file_path: Optional[str] = Field(None, description="Путь к файлу .md в хранилище")
 
     semantic_embedding: Optional[List[float]] = Field(None, description="Векторное представление для поиска")
-
-    # --- Валидаторы ---
 
     @field_validator('id')
     @classmethod
@@ -256,7 +235,6 @@ class KnowledgeCard(BaseModel):
     @field_validator('date_updated')
     @classmethod
     def validate_dates(cls, date_updated: date, values) -> date:
-        """Дата обновления не может быть раньше даты создания"""
         date_created = values.data.get('date_created') if hasattr(values, 'data') else None
         if date_created and date_updated < date_created:
             raise ValueError("date_updated не может быть раньше date_created")
@@ -265,17 +243,11 @@ class KnowledgeCard(BaseModel):
     @field_validator('tags')
     @classmethod
     def validate_tags(cls, tags: List[str]) -> List[str]:
-        """
-        Проверка тегов: не пустые, без дубликатов, разрешены кириллица, латиница, цифры, _ и -
-        """
         if not tags:
             return tags
 
-        # Очистка: нижний регистр, удаление пробелов, удаление дубликатов
         cleaned = list(set(tag.lower().strip() for tag in tags if tag.strip()))
 
-        # ✅ Разрешаем: кириллица (а-яё), латиница (a-z), цифры, подчёркивание, дефис
-        # Паттерн: ^[...]+$ — строка должна состоять ТОЛЬКО из разрешённых символов
         tag_pattern = r'^[a-zа-яё0-9_-]+$'
 
         for tag in cleaned:
@@ -290,15 +262,12 @@ class KnowledgeCard(BaseModel):
     @field_validator('sources')
     @classmethod
     def validate_sources(cls, sources: List[str]) -> List[str]:
-        """Очистка и проверка источников"""
         if not sources:
             raise ValueError("Поле sources должно содержать хотя бы один источник")
         return [s.strip() for s in sources if s.strip()]
 
-    # --- Методы-хелперы ---
-
     def get_search_text(self) -> str:
-        """Возвращает объединённый текст для индексации в поиске"""
+
         parts = [self.title, self.content.description]
         if self.content.definition:
             parts.append(self.content.definition)
@@ -311,7 +280,6 @@ class KnowledgeCard(BaseModel):
         return " ".join(filter(None, parts))
 
     def to_yaml_frontmatter(self) -> str:
-        """Экспорт метаданных в YAML-формат для сохранения в .md файл"""
         import yaml
         meta = {
             "id": self.id,
@@ -332,20 +300,15 @@ class KnowledgeCard(BaseModel):
         return yaml.dump(meta, allow_unicode=True, sort_keys=False, default_flow_style=False)
 
     def is_approved(self) -> bool:
-        """Проверка, утверждена ли карточка для публикации"""
         return self.status == DocumentStatus.APPROVED
 
     def requires_medical_consultation(self) -> bool:
-        """
-        Эвристика: определяет, требует ли карточка предупреждения
-        о консультации с врачом (по ключевым словам в рисках/исключениях).
-        """
+
         warning_keywords = [
             "противопоказ", "врач", "специалист", "заболев", "беремен",
             "хроническ", "лекарств", "диагноз", "лечени"
         ]
 
-        # ✅ Правильная обработка Optional[List[str]]
         risks_text = " ".join(self.content.risks) if self.content.risks else ""
         exceptions_text = " ".join(self.content.exceptions) if self.content.exceptions else ""
         description_text = self.content.description or ""
@@ -357,11 +320,6 @@ class KnowledgeCard(BaseModel):
         ]).lower()
 
         return any(kw in text_to_check for kw in warning_keywords)
-
-
-# =============================================================================
-# МОДЕЛИ ДЛЯ API (Request/Response)
-# =============================================================================
 
 class SearchQuery(BaseModel):
     """Запрос пользователя к базе знаний"""

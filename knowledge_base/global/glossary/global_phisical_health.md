@@ -4,12 +4,12 @@ title: "Физическое здоровье"
 domain: "global"
 category: "glossary"
 tags:
-- физическое_здоровье
-- тело
-- профилактика
-- general
-- информирование
-- core
+  - физическое_здоровье
+  - тело
+  - профилактика
+  - general
+  - информирование
+  - core
 related:
   - "GLB-GLOSS-001"
 audience:

@@ -4,12 +4,12 @@ title: "Образ жизни и здоровье"
 domain: "global"
 category: "glossary"
 tags:
-- образ_жизни
-- здоровье
-- привычки
-- general
-- информирование
-- core
+  - образ_жизни
+  - здоровье
+  - привычки
+  - general
+  - информирование
+  - core
 related:
   - "GLB-GLOSS-001"
   - "GLB-GLOSS-003"

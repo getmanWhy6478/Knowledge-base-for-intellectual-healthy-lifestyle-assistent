@@ -4,12 +4,12 @@ title: "Здоровье"
 domain: "global"
 category: "glossary"
 tags:
-- здоровье
-- благополучие
-- профилактика
-- general
-- информирование
-- core
+  - здоровье
+  - благополучие
+  - профилактика
+  - general
+  - информирование
+  - core
 related:
   - "GLB-GLOSS-002"
   - "GLB-GLOSS-003"

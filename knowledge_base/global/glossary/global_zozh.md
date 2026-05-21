@@ -1,16 +1,16 @@
 ---
-id: "GLB-GLOSS-006"
+id: "GLB-GLOSS-005"
 title: "Здоровый образ жизни"
 domain: "mental"
 category: "glossary"
 tags:
-- зож
-- здоровый_образ_жизни
-- профилактика
-- благополучие
-- general
-- информирование
-- core
+  - зож
+  - здоровый_образ_жизни
+  - профилактика
+  - благополучие
+  - general
+  - информирование
+  - core
 related:
   - "MNT-GLOSS-001"
   - "GLB-GLOSS-001"

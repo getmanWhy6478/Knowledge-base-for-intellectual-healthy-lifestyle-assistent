@@ -1,10 +1,3 @@
-"""
-Загрузчик карточек знаний в стандартном формате:
----
-yaml: frontmatter
----
-## Markdown content
-"""
 
 import re
 import yaml
@@ -18,12 +11,6 @@ from models import (
     DocumentStatus
 )
 
-
-# =============================================================================
-# КОНФИГУРАЦИЯ
-# =============================================================================
-
-# Маппинг заголовков разделов на поля KnowledgeContent
 SECTION_MAP = {
     'определение': 'definition',
     'описание': 'description',
@@ -66,20 +53,8 @@ SECTION_MAP = {
 # Поля, которые являются списками строк
 LIST_FIELDS = {'tags', 'audience', 'sources', 'benefits', 'risks', 'recommendations', 'exceptions', 'synonyms', 'usage_examples'}
 
-
-# =============================================================================
-# ПАРСИНГ ФРОНТМАТТЕРА
-# =============================================================================
-
 def parse_frontmatter(raw_text: str) -> tuple[dict, str]:
-    """
-    Парсит файл с форматом:
-    ---
-    yaml...
-    ---
-    # Markdown content
-    """
-    # Разделяем по разделителям ---
+
     parts = re.split(r'^---\s*$', raw_text.strip(), maxsplit=2, flags=re.MULTILINE)
     if len(parts) < 3:
         raise ValueError("Файл должен начинаться с --- YAML фронтматтера ---")
@@ -87,7 +62,6 @@ def parse_frontmatter(raw_text: str) -> tuple[dict, str]:
     yaml_block = parts[1].strip()
     markdown_body = parts[2].strip()
 
-    # Парсим YAML
     meta = yaml.safe_load(yaml_block)
     if not isinstance(meta, dict):
         raise ValueError("Фронтматтер должен быть YAML-словарём")
@@ -96,12 +70,9 @@ def parse_frontmatter(raw_text: str) -> tuple[dict, str]:
 
 
 def normalize_meta(meta: dict) -> dict:
-    """
-    Приводит метаданные к формату, ожидаемому KnowledgeCard.
-    """
     result = meta.copy()
 
-    # 1. related: список строк -> список RelatedDocument
+    # related: список строк -> список RelatedDocument
     if 'related' in result and isinstance(result['related'], list):
         result['related'] = [
             {'id': item, 'relation_type': 'relates_to', 'title': None}
@@ -110,7 +81,7 @@ def normalize_meta(meta: dict) -> dict:
             for item in result['related']
         ]
 
-    # 2. Конвертация enum-полей (строка -> Enum)
+    # Конвертация enum-полей (строка -> Enum)
     enum_maps = {
         'domain': Domain,
         'category': Category,
@@ -121,11 +92,11 @@ def normalize_meta(meta: dict) -> dict:
         if field in result and isinstance(result[field], str):
             result[field] = enum_cls(result[field].lower())
 
-    # 3. audience: список строк -> список Audience
+    # audience: список строк -> список Audience
     if 'audience' in result and isinstance(result['audience'], list):
         result['audience'] = [Audience(a.lower()) if isinstance(a, str) else a for a in result['audience']]
 
-    # 4. Даты: строки -> date
+    # Даты: строки -> date
     for field in ['date_created', 'date_updated']:
         if field in result and isinstance(result[field], str):
             result[field] = date.fromisoformat(result[field])
@@ -133,19 +104,10 @@ def normalize_meta(meta: dict) -> dict:
     return result
 
 
-# =============================================================================
-# ПАРСИНГ MARKDOWN-ТЕЛА
-# =============================================================================
-
 def parse_markdown_body(md_text: str) -> dict:
-    """
-    Парсит тело карточки с заголовками ## (и ###, встречается в части карточек).
-    """
     result = {}
     extra_sections: Dict[str, str] = {}
 
-    # Сплитим по заголовкам ## / ###
-    # Паттерн: перенос, затем ## или ###, пробел, название раздела
     sections = re.split(r'\n#{2,3}\s+', '\n' + md_text)
 
     for section in sections:
@@ -153,13 +115,11 @@ def parse_markdown_body(md_text: str) -> dict:
         if not section:
             continue
 
-        # Первая строка — заголовок, остальное — контент
         lines = section.split('\n', 1)
         header_title = lines[0].strip()
         header = header_title.lower()
         content = lines[1].strip() if len(lines) > 1 else ''
 
-        # Маппим заголовок на поле; неизвестные разделы — в extra_sections
         field_name = SECTION_MAP.get(header)
         if field_name is None:
             text_value = content.strip()
@@ -206,7 +166,6 @@ def parse_markdown_body(md_text: str) -> dict:
 
     # Описание обязательно
     if 'description' not in result:
-        # Берём первый абзац после заголовка карточки (# Тревожность)
         first_para = re.split(r'\n#+\s+', md_text, maxsplit=1)
         if len(first_para) > 1:
             result['description'] = first_para[1].split('\n\n')[0].strip()[:500]
@@ -235,10 +194,7 @@ def parse_markdown_body(md_text: str) -> dict:
 
 
 def _normalize_description_field(result: dict) -> None:
-    """
-    Убирает типичные дубли с автополем description:
-    то же, что «Определение», или строка «Тип» + значение поля type.
-    """
+
     desc = (result.get("description") or "").strip()
     if not desc:
         return
@@ -260,19 +216,12 @@ def _normalize_description_field(result: dict) -> None:
         desc_norm,
         re.IGNORECASE,
     ):
-        # Не подставляем вердикт/разбор — иначе дублируются отдельные секции карточки.
         result["description"] = typ
 
 
 
 def parse_list_items(text: str) -> Optional[List[str]]:
-    """
-    Парсит список из Markdown:
-    - маркированный (- / *)
-    - нумерованный (1. / 2.)
 
-    Если список не размечен, но текст есть — возвращает 1 элемент (весь блок).
-    """
     items = []
     for line in text.split('\n'):
         line = line.strip()
@@ -300,7 +249,6 @@ def parse_list_items(text: str) -> Optional[List[str]]:
 
 
 def parse_key_value_list(text: str) -> Optional[Dict[str, str]]:
-    """Парсит список свойств: - **Ключ**: значение"""
     result = {}
     for line in text.split('\n'):
         line = line.strip()
@@ -313,11 +261,8 @@ def parse_key_value_list(text: str) -> Optional[Dict[str, str]]:
             if key and value:
                 result[key] = value
     return result if result else None
+
 def parse_related_topics(text: str) -> Optional[List[str]]:
-    """
-    Парсит связанные темы в формате:
-    [[MNT-COND-001]] — Тревожность (relates_to)
-    """
     items = []
     for line in text.split('\n'):
         line = line.strip()
@@ -336,21 +281,11 @@ def parse_related_topics(text: str) -> Optional[List[str]]:
                 items.append(line)
     return items if items else None
 
-# =============================================================================
-# СБОРКА КАРТОЧКИ
-# =============================================================================
-
 def build_knowledge_card(file_path: str, meta: dict, content_md: str) -> KnowledgeCard:
-    """
-    Создаёт KnowledgeCard из метаданных и Markdown-контента.
-    """
-    # Нормализуем метаданные
     normalized_meta = normalize_meta(meta)
 
-    # Парсим контент
     content_data = parse_markdown_body(content_md)
 
-    # Источники могут встречаться в теле карточки в виде секции "## Источники"
     sources_from_body = content_data.pop('sources', None)
     if sources_from_body and isinstance(sources_from_body, list):
         existing_sources = normalized_meta.get('sources') or []
@@ -379,9 +314,6 @@ def build_knowledge_card(file_path: str, meta: dict, content_md: str) -> Knowled
 
 
 def load_knowledge_base(directory: str = "knowledge_base") -> List[KnowledgeCard]:
-    """
-    Загружает все карточки из директории.
-    """
     cards = []
     kb_path = Path(directory)
 
