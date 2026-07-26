@@ -13,7 +13,6 @@ tags:
 - advanced
 related:
 - "MNT-GLOSS-009"
-- "GLB-GLOSS-005"
 - "MNT-HABIT-001"
 - "MNT-RULE-014"
 - "MNT-RULE-020"
@@ -47,7 +46,6 @@ status: "approved"
 
 ## Связанные термины
 - [[MNT-GLOSS-009]] — Гигиена сна (is_part_of)
-- [[GLB-GLOSS-005]] — Восстановление
 - [[MNT-HABIT-001]] — Вечерний ритуал отключения (supplements)
 - [[MNT-RULE-014]] — Правило утреннего света для регуляции циркадных ритмов (supplements)
 - [[MNT-RULE-020]] — Правило гигиены сна для восстановления (supplements)

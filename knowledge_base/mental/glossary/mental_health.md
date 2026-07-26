@@ -47,6 +47,6 @@ status: "approved"
 ## Связанные термины
 - [[MNT-GLOSS-002]] — Стресс (relates_to)
 - [[MNT-GLOSS-005]] — Резильентность (relates_to)
-- [[GLB-GLOSS-001]] — Здоровый образ жизни
+- [[GLB-GLOSS-006]] — Здоровый образ жизни (relates_to)
 - [[MNT-GLOSS-004]] — Эмоциональная регуляция (relates_to)
 - [[MNT-GLOSS-009]] — Выгорание профессиональное (contradicts)

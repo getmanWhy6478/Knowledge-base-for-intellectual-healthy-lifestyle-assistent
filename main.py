@@ -23,31 +23,22 @@ from safety import (
 search_engine: SearchEngine
 
 
-# =============================================================================
-# Lifespan-события (вместо устаревшего @app.on_event)
-# =============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Инициализация при старте приложения (FastAPI 0.95+)"""
     global search_engine
 
-    print("🔄 Инициализация поискового движка...")
+    print("Инициализация поискового движка...")
     try:
         search_engine = SearchEngine(kb_path="knowledge_base")
         print("✅ Поисковый движок готов!")
     except Exception as e:
-        print(f"❌ Ошибка инициализации поискового движка: {e}")
+        print(f"Ошибка инициализации поискового движка: {e}")
         search_engine = None
 
-    yield  # Приложение работает
-
-    # Очистка при остановке (если нужно)
-    print("🛑 Остановка приложения...")
+    yield
 
 
-# =============================================================================
-# Создание приложения
-# =============================================================================
 app = FastAPI(
     title="Health Lifestyle Assistant",
     version="1.0",
@@ -55,25 +46,15 @@ app = FastAPI(
     lifespan=lifespan  # ✅ Используем lifespan вместо on_event
 )
 
-# =============================================================================
-# CORS Middleware (исправленный синтаксис)
-# =============================================================================
 app.add_middleware(
-    CORSMiddleware,  # ✅ Это класс, а не экземпляр
-    allow_origins=["*"],  # Для продакшена укажите конкретные домены
+    CORSMiddleware,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# =============================================================================
-# Статические файлы
-# =============================================================================
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
-# =============================================================================
-# Эндпоинты
-# =============================================================================
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -99,17 +80,13 @@ async def search_endpoint(query: SearchQuery):
                 message=error_msg,
                 meta={"suggestions": suggestions} if suggestions else None
             )
-    # 1. Проверка безопасности запроса
     safety_warning = check_query_safety(query.query)
 
-    # 2. Если критично — возвращаем предупреждение без поиска
     if safety_warning.is_critical:
         return build_api_response([], safety_warning)
 
-    # 3. Выполняем поиск ✅ Метод search() существует в SearchEngine
     results = search_engine.search(query)
 
-    # 4. Формируем ответ
     return build_api_response(
         results=results,
         safety_warning=safety_warning if safety_warning.action_recommended != "none" else None,
@@ -134,21 +111,6 @@ async def get_card(card_id: str):
         "safety_note": format_safety_footer(card) if evaluate_card_safety(card) else None
     }
 
-
-@app.get("/api/stats")
-async def get_stats():
-    """Статистика базы знаний (для админ-панели)"""
-    if not search_engine:
-        return {"total_cards": 0, "error": "Search engine not initialized"}
-
-    # ✅ Метод get_statistics() существует в SearchEngine
-    return search_engine.get_statistics()
-
-
-# =============================================================================
-# Обзор базы знаний (структура и карточки)
-# =============================================================================
-
 DOMAIN_TITLES: Dict[str, str] = {
     "mental": "Ментальное здоровье",
     "nutrition": "Питание",
@@ -164,6 +126,20 @@ CATEGORY_TITLES: Dict[str, str] = {
     "myth": "Мифы",
     "partially_true": "Частично верно",
     "rule": "Правила",
+    "condition": "Расстройтсва",
+    "habit": "Привычки",
+    "self_help": "Самопомощь",
+    "technique": "Техники",
+    "diet": "Диеты",
+    "nutrient": "Нутриенты",
+    "product": "Продукты",
+    "special_groups": "Для специальных групп",
+    "activity": "Занятия",
+    "exercise": "Упражнения",
+    "injury": "Травмы",
+    "program": "Программы",
+    "sports": "Виды спорта",
+    "profiles": "Профили аудитории"
 }
 
 
@@ -217,7 +193,7 @@ async def browse_categories(domain_id: str):
 
 @app.get("/api/browse/domains/{domain_id}/categories/{category_id}/cards")
 async def browse_cards(domain_id: str, category_id: str):
-    """Список карточек по домену и категории (кратко)"""
+    """Список карточек по домену и категории"""
     if not search_engine:
         raise HTTPException(status_code=503, detail="Search engine not initialized")
 
@@ -257,9 +233,5 @@ async def health_check():
         "cards_loaded": len(search_engine.cards) if search_engine else 0
     }
 
-
-# =============================================================================
-# Запуск
-# =============================================================================
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

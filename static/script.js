@@ -1,20 +1,10 @@
-/**
- * Health Lifestyle Assistant - Frontend Script
- * Обработка запросов к API и отображение результатов
- */
 
-// =============================================================================
-// КОНФИГУРАЦИЯ
-// =============================================================================
 const API_BASE_URL = '';  // Пустая строка = тот же домен (localhost:8000)
 const SEARCH_ENDPOINT = '/api/search';
 const MAX_RESULTS = 10;
 const BROWSE_DOMAINS_ENDPOINT = '/api/browse/domains';
-const RELEVANCE_THRESHOLD = 0.38;
+const RELEVANCE_THRESHOLD = 0.4;
 
-// =============================================================================
-// ЭЛЕМЕНТЫ DOM
-// =============================================================================
 const searchInput = document.getElementById('queryInput');
 const searchButton = document.getElementById('searchButton');
 const resultsArea = document.getElementById('resultsArea');
@@ -30,9 +20,6 @@ const cardDetail = document.getElementById('cardDetail');
 const browseCount = document.getElementById('browseCount');
 const cardMeta = document.getElementById('cardMeta');
 
-// =============================================================================
-// ИНИЦИАЛИЗАЦИЯ
-// =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     // Привязка обработчиков событий
     if (searchButton) {
@@ -61,9 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Health Assistant frontend initialized');
 });
 
-// =============================================================================
-// РЕЖИМЫ: ПОИСК / ОБЗОР БАЗЫ
-// =============================================================================
 let currentMode = 'search';
 let currentBrowse = { domain: '', category: '' };
 let forceShow = false;
@@ -97,9 +81,6 @@ async function initBrowseIfNeeded() {
     await loadDomains();
 }
 
-// =============================================================================
-// ОБЗОР БАЗЫ: ДОМЕНЫ → КАТЕГОРИИ → КАРТОЧКИ → ПРОСМОТР
-// =============================================================================
 async function loadDomains() {
     try {
         showLoader(true);
@@ -113,7 +94,6 @@ async function loadDomains() {
             `<option value="${escapeHtml(d.id)}">${escapeHtml(d.title || d.id)} (${d.count})</option>`
         ).join('');
 
-        // Сброс зависимых селектов/панелей
         resetBrowseSelections({ keepDomain: false });
     } catch (e) {
         showError(`Не удалось загрузить структуру базы: ${e.message}`);
@@ -271,9 +251,6 @@ async function openCardById(cardId) {
 // Доступно из inline onclick списка карточек
 window.openCardById = openCardById;
 
-// =============================================================================
-// ОСНОВНАЯ ФУНКЦИЯ ПОИСКА
-// =============================================================================
 async function performSearch(force = false) {
     // ✅ СБРОС ФЛАГА (если не принудительный вызов)
     if (!force) {
@@ -325,9 +302,7 @@ async function performSearch(force = false) {
         showLoader(false);
     }
 }
-// =============================================================================
-// ОБРАБОТКА ОТВЕТА API
-// =============================================================================
+
 function handleApiResponse(data) {
     const results = data.data || data.results || [];
     const warning = data.warning;
@@ -399,16 +374,11 @@ function showLowRelevance(resultsCount) {
     `;
 }
 
-// =============================================================================
-// ПРИНУДИТЕЛЬНЫЙ ПОКАЗ РЕЗУЛЬТАТОВ
-// =============================================================================
 function forceShowResults() {
     console.log('🔘 Кнопка "Всё равно показать" нажата');
 
-    // ✅ Устанавливаем флаг
     forceShow = true;
 
-    // ✅ Повторяем поиск с тем же запросом
     performSearch(true);
 }
 
@@ -439,11 +409,6 @@ function searchWithQuery(newQuery) {
 }
 window.searchWithQuery = searchWithQuery;
 
-
-
-// =============================================================================
-// ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ
-// =============================================================================
 function displayResults(results, message) {
     if (!resultsArea) return;
 
@@ -466,9 +431,6 @@ function displayResults(results, message) {
     resultsArea.innerHTML = headerHtml + cardsHtml;
 }
 
-// =============================================================================
-// HTML ШАБЛОН КАРТОЧКИ
-// =============================================================================
 function createCardHtml(card, score, index) {
     if (!card) return '';
 
@@ -689,8 +651,8 @@ function createCardHtml(card, score, index) {
                 ${recommendationsHtml}
                 ${crossSectionsHtml}
                 ${extraSectionsHtml}
-                ${relatedTopicsHtml}
                 ${sourcesHtml}
+                ${relatedTopicsHtml}
             </div>
 
             <footer class="card-footer">
@@ -703,9 +665,6 @@ function createCardHtml(card, score, index) {
     `;
 }
 
-// =============================================================================
-// ПРЕДУПРЕЖДЕНИЯ БЕЗОПАСНОСТИ
-// =============================================================================
 function showSafetyWarning(warning) {
     if (!resultsArea) return;
 
@@ -735,9 +694,6 @@ function getActionText(action) {
     return actions[action] || '';
 }
 
-// =============================================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// =============================================================================
 function showLoader(show) {
     if (loader) {
         loader.style.display = show ? 'block' : 'none';
@@ -823,7 +779,7 @@ function showDisclaimer(customText) {
     `;
 }
 
-// Безопасное экранирование HTML (глобальная функция)
+// Безопасное экранирование HTML
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -918,11 +874,7 @@ function processMarkdownInline(text) {
     processed = processed.replace(/\n/g, '<br>');
     return processed;
 }
-// =============================================================================
-// ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ (для будущего расширения)
-// =============================================================================
 
-// Поиск по категории
 async function searchByCategory(category, top_k = 5) {
     const response = await fetch(`${API_BASE_URL}${SEARCH_ENDPOINT}`, {
         method: 'POST',
@@ -936,14 +888,12 @@ async function searchByCategory(category, top_k = 5) {
     return await response.json();
 }
 
-// Получение карточки по ID
 async function getCardById(cardId) {
     const response = await fetch(`${API_BASE_URL}/api/card/${cardId}`);
     if (!response.ok) throw new Error('Card not found');
     return await response.json();
 }
 
-// Экспорт результатов в консоль (для отладки)
 function exportResultsToConsole() {
     console.log('📊 Экспорт результатов поиска:');
     const cards = document.querySelectorAll('.knowledge-card');
@@ -953,7 +903,6 @@ function exportResultsToConsole() {
     });
 }
 
-// Горячие клавиши
 document.addEventListener('keydown', (e) => {
     // Ctrl+K или Cmd+K — фокус на поиск
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -961,7 +910,6 @@ document.addEventListener('keydown', (e) => {
         if (searchInput) searchInput.focus();
     }
 
-    // Escape — очистка поиска
     if (e.key === 'Escape') {
         if (searchInput) searchInput.blur();
         clearResults();

@@ -13,7 +13,6 @@ tags:
 related:
 - "MNT-GLOSS-004"
 - "MNT-GLOSS-005"
-- "GLB-CROSS-003"
 - "MNT-SELF-006"
 - "MNT-SELF-011"
 - "MNT-RULE-021"
@@ -48,7 +47,6 @@ status: "approved"
 ## Связанные термины
 - [[MNT-GLOSS-004]] — Эмоциональная регуляция (supplements)
 - [[MNT-GLOSS-005]] — Резильентность (supplements)
-- [[GLB-CROSS-003]] — Социальные связи и здоровье
 - [[MNT-SELF-006]] — Сценарий: подготовка к сложному разговору (requires)
 - [[MNT-SELF-011]] — Сценарий: установление границы в общении (requires)
 - [[MNT-RULE-021]] — Правило разрешения конфликтов в отношениях (requires)

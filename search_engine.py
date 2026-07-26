@@ -1,7 +1,3 @@
-"""
-Интеллектуальный поиск по базе знаний ЗОЖ.
-Использует векторные эмбеддинги и фильтрацию по метаданным.
-"""
 
 import numpy as np
 from typing import List, Optional, Dict
@@ -12,15 +8,9 @@ from models import (
     EvidenceLevel
 )
 from loader import load_knowledge_base
-from query_validator import QueryValidator, create_validator_from_cards
+from query_validator import create_validator_from_cards
 
 class SearchEngine:
-    """
-    Движок семантического поиска с поддержкой:
-    - векторной схожести (cosine similarity)
-    - фильтрации по домену, категории, аудитории, уровню доказательности
-    - ранжирования по релевантности + доказательности
-    """
 
     def __init__(
         self,
@@ -37,7 +27,6 @@ class SearchEngine:
             self.load_knowledge_base(kb_path)
 
     def load_knowledge_base(self, directory: str):
-        """Загружает и индексирует карточки из директории"""
         print(f"🔄 Загрузка базы знаний из {directory}...")
 
         self.cards = load_knowledge_base(directory)
@@ -46,33 +35,24 @@ class SearchEngine:
             print("⚠️ База знаний пуста!")
             return
 
-        # Генерируем эмбеддинги для поиска
         search_texts = [card.get_search_text() for card in self.cards]
 
         self.embeddings = self.model.encode(search_texts, show_progress_bar=True)
 
-        print(f"✅ Индексировано {len(self.cards)} карточек. Векторы: {self.embeddings.shape}")
+        print(f"Индексировано {len(self.cards)} карточек. Векторы: {self.embeddings.shape}")
 
     def search(self, query: SearchQuery, min_score: float = 0.3) -> List[SearchResult]:
-        """
-        Выполняет поиск с учётом фильтров из запроса.
-        Возвращает отсортированные результаты с оценкой релевантности.
-        """
         if not self.cards or self.embeddings is None:
             return []
         if self.validator:
             is_valid, error_msg, suggestions = self.validator.validate(query.query)
             if not is_valid and error_msg:
-                # Возвращаем пустой результат с подсказками
-                return []  # Или можно кастомизировать ответ
-        # 1. Векторизуем запрос
+                return []
         normalized_query = (query.query or "").strip().lower()
         query_embedding = self.model.encode([normalized_query])[0]
 
-        # 2. Вычисляем косинусное сходство
         similarities = self._cosine_similarity(query_embedding, self.embeddings)
 
-        # 3. Применяем фильтры из запроса
         valid_indices = []
         for idx, card in enumerate(self.cards):
             if not self._matches_filters(card, query):
@@ -80,7 +60,6 @@ class SearchEngine:
             if similarities[idx] >= min_score:
                 valid_indices.append((idx, similarities[idx]))
 
-        # 4. Сортируем: сначала по релевантности, потом по уровню доказательности
         evidence_weights = {
             EvidenceLevel.HIGH: 3,
             EvidenceLevel.MODERATE: 2,
@@ -93,7 +72,6 @@ class SearchEngine:
             reverse=True
         )
 
-        # 5. Формируем результаты
         results = []
         for idx, score in valid_indices[:query.top_k]:
             card = self.cards[idx]
@@ -108,7 +86,6 @@ class SearchEngine:
         return results
 
     def _cosine_similarity(self, query_vec: np.ndarray, doc_vecs: np.ndarray) -> np.ndarray:
-        """Вычисляет косинусное сходство между вектором запроса и документами"""
         query_norm = np.linalg.norm(query_vec)
         doc_norms = np.linalg.norm(doc_vecs, axis=1)
         doc_norms = np.where(doc_norms == 0, 1e-10, doc_norms)
@@ -117,7 +94,6 @@ class SearchEngine:
         return np.clip(similarities, 0, 1)
 
     def _matches_filters(self, card: KnowledgeCard, query: SearchQuery) -> bool:
-        """Проверяет, удовлетворяет ли карточка фильтрам запроса"""
         def _val(x):
             return getattr(x, "value", x)
 
@@ -140,7 +116,6 @@ class SearchEngine:
         return True
 
     def _extract_highlights(self, card: KnowledgeCard, query: str) -> Optional[Dict[str, List[str]]]:
-        """Находит фрагменты текста карточки, содержащие слова из запроса"""
         import re
         query_words = set(re.findall(r'[а-яa-z]{3,}', query.lower(), re.I))
         if not query_words:
@@ -173,22 +148,7 @@ class SearchEngine:
         return highlights if highlights else None
 
     def get_card_by_id(self, card_id: str) -> Optional[KnowledgeCard]:
-        """Получает карточку по ID"""
         for card in self.cards:
             if card.id.upper() == card_id.upper():
                 return card
         return None
-
-    def get_statistics(self) -> dict:
-        """Возвращает статистику по базе знаний"""
-        if not self.cards:
-            return {"total_cards": 0}
-
-        from collections import Counter
-        return {
-            "total_cards": len(self.cards),
-            "by_domain": dict(Counter(c.domain for c in self.cards)),
-            "by_category": dict(Counter(c.category for c in self.cards)),
-            "by_evidence": dict(Counter(c.evidence_level for c in self.cards)),
-            "approved_count": sum(1 for c in self.cards if c.is_approved())
-        }
